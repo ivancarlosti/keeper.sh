@@ -5,3 +5,9 @@ export const calendarSnapshotsTable = pgTable("calendar_snapshots", {
   createdAt: timestamp().notNull().defaultNow(),
   ical: text(),
 });
+
+export const remoteICalSources = pgTable("remote_ical_sources", {
+  id: uuid().notNull().primaryKey().defaultRandom(),
+  createdAt: timestamp().notNull().defaultNow(),
+  url: text(),
+});

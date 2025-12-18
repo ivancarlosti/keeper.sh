@@ -8,6 +8,13 @@
       "when": 1766099159233,
       "tag": "0000_slimy_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766100764121,
+      "tag": "0001_complete_golden_guardian",
+      "breakpoints": true
     }
   ]
 }
