@@ -2,7 +2,8 @@
   "name": "@keeper.sh/database",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/database/schema.ts"
+    "./schema": "./src/database/schema.ts",
+    "./auth-schema": "./src/database/auth-schema.ts"
   },
   "type": "module",
   "private": true,

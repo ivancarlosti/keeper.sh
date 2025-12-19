@@ -36,6 +36,13 @@
       "when": 1766117711017,
       "tag": "0004_strong_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766119528843,
+      "tag": "0005_dusty_nomad",
+      "breakpoints": true
     }
   ]
 }
