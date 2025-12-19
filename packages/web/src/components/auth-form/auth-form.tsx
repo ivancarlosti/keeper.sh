@@ -4,8 +4,6 @@ import { Input } from "@base-ui-components/react/input";
 import { Button } from "@base-ui-components/react/button";
 import styles from "./auth-form.module.css";
 
-export { styles as authFormStyles };
-
 export function AuthFormContainer({ children }: { children: React.ReactNode }) {
   return <main className={styles.container}>{children}</main>;
 }
