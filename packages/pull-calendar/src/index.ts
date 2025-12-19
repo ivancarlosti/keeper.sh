@@ -8,24 +8,48 @@ const fetchRemoteText = async (url: string) => {
 
 type ParsedCalendarResult = ReturnType<typeof convertIcsCalendar>;
 
-export async function pullRemoteCalendar(
-  output: "icap",
-  url: string,
-): Promise<string>;
+type OutputICal = "ical" | ["ical"];
+type OutputJSON = "json" | ["json"];
+type OutputICALOrJSON = ["ical", "json"] | ["json", "ical"];
+
+type JustICal = { ical: string; json?: never };
+type JustJSON = { json: ParsedCalendarResult; ical?: never };
+type ICalOrJSON = Omit<JustICal, "json"> & Omit<JustJSON, "ical">;
 
 export async function pullRemoteCalendar(
-  output: "json",
+  output: OutputICal,
   url: string,
-): Promise<ParsedCalendarResult>;
+): Promise<JustICal>;
+
+export async function pullRemoteCalendar(
+  output: OutputJSON,
+  url: string,
+): Promise<JustJSON>;
+
+export async function pullRemoteCalendar(
+  output: OutputICALOrJSON,
+  url: string,
+): Promise<ICalOrJSON>;
 
 /**
  * @throws
  */
 export async function pullRemoteCalendar(
-  output: "json" | "icap",
+  output: OutputJSON | OutputICal | OutputICALOrJSON,
   url: string,
-): Promise<string | ParsedCalendarResult> {
-  const text = await fetchRemoteText(url);
-  if (output === "icap") return text;
-  return convertIcsCalendar(undefined, text);
+): Promise<JustICal | JustJSON | ICalOrJSON> {
+  const outputs = typeof output === "string" ? [output] : output;
+  const ical = await fetchRemoteText(url);
+
+  if (!outputs.includes("json")) {
+    return { ical };
+  }
+
+  const json = convertIcsCalendar(undefined, ical);
+
+  if (!outputs.includes("ical")) {
+    return { json };
+  }
+
+  return { json, ical };
 }
