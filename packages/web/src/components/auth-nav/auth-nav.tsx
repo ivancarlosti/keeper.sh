@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@base-ui-components/react/button";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth } from "@/components/auth-provider/auth-provider";
 import { signOut } from "@/lib/auth";
-import styles from "./header.module.css";
+import styles from "./auth-nav.module.css";
 
 export function AuthNav() {
   const router = useRouter();

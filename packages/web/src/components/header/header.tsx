@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AuthNav } from "./auth-nav";
+import { AuthNav } from "@/components/auth-nav/auth-nav";
 import styles from "./header.module.css";
 
 export function Header() {

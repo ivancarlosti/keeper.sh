@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/header";
-import { useAuth } from "@/components/auth-provider";
+import { Header } from "@/components/header/header";
+import { useAuth } from "@/components/auth-provider/auth-provider";
 import {
   AuthFormContainer,
   AuthForm,
@@ -14,7 +14,7 @@ import {
   AuthFormSubmit,
   AuthFormFooter,
   styles,
-} from "@/components/auth-form";
+} from "@/components/auth-form/auth-form";
 import { signUp } from "@/lib/auth";
 
 export default function RegisterPage() {
@@ -29,12 +29,12 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const username = formData.get("username") as string;
-    const password = formData.get("password") as string;
-    const name = formData.get("name") as string;
+    const username = String(formData.get("username") ?? "");
+    const password = String(formData.get("password") ?? "");
+    const name = String(formData.get("name") ?? "") || undefined;
 
     try {
-      await signUp(username, password, name || undefined);
+      await signUp(username, password, name);
       await refresh();
       router.push("/dashboard");
     } catch (err) {
