@@ -12,6 +12,7 @@ export type GeneratedSnapshot = {
   id: string;
   userId: string;
   ical: string;
+  public: boolean;
   createdAt: Date;
 };
 
@@ -45,6 +46,7 @@ export const generateSnapshot = (userId: string): GeneratedSnapshot => ({
   id: randomUUID(),
   userId,
   ical: generateIcsContent(),
+  public: true,
   createdAt: randomPastDate(14),
 });
 

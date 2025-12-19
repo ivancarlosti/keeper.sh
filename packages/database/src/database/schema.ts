@@ -1,4 +1,4 @@
-import { text, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, text, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: uuid().notNull().primaryKey().defaultRandom(),
@@ -12,6 +12,7 @@ export const calendarSnapshotsTable = pgTable("calendar_snapshots", {
     .references(() => usersTable.id),
   createdAt: timestamp().notNull().defaultNow(),
   ical: text(),
+  public: boolean().notNull().default(false),
 });
 
 export const remoteICalSourcesTable = pgTable("remote_ical_sources", {
