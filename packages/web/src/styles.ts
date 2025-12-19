@@ -106,3 +106,18 @@ export const integrationName = tv({
 export const integrationDescription = tv({
   base: "text-sm text-gray-500",
 });
+
+export const calendarEvent = tv({
+  base: "absolute inset-x-0.5 rounded px-1.5 py-0.5 text-xs font-medium overflow-hidden truncate cursor-pointer transition-opacity hover:opacity-80",
+  variants: {
+    color: {
+      blue: "bg-blue-100 text-blue-800 border-l-2 border-blue-500",
+      green: "bg-green-100 text-green-800 border-l-2 border-green-500",
+      purple: "bg-purple-100 text-purple-800 border-l-2 border-purple-500",
+      orange: "bg-orange-100 text-orange-800 border-l-2 border-orange-500",
+    },
+  },
+  defaultVariants: {
+    color: "blue",
+  },
+});
