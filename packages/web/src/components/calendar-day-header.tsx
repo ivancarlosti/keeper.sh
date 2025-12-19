@@ -10,7 +10,7 @@ export function CalendarDayHeader({ date }: CalendarDayHeaderProps) {
   const dayNumber = date.getDate();
 
   return (
-    <div className="flex flex-col items-center justify-center w-24 shrink-0 py-2 border-l border-gray-200">
+    <div className="flex flex-col items-center justify-center min-w-24 py-2 border-l border-gray-200">
       <span className="text-xs font-medium text-gray-500">{weekday}</span>
       <span
         className={`text-lg font-semibold ${

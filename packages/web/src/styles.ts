@@ -60,3 +60,55 @@ export const link = tv({
 export const brand = tv({
   base: "text-2xl font-bold text-gray-900 no-underline",
 });
+
+export const calendarScroll = tv({
+  base: "overflow-x-auto",
+  variants: {
+    hideScrollbar: {
+      true: "scrollbar-none",
+    },
+  },
+});
+
+export const calendarGrid = tv({
+  base: "grid grid-cols-[repeat(var(--days),minmax(--spacing(24),1fr))] pl-12",
+});
+
+export const calendarRow = tv({
+  base: "col-span-full grid grid-cols-subgrid relative before:absolute before:right-full before:w-12 before:pr-2 before:text-right before:text-xs before:text-gray-500 before:-translate-y-1/2",
+  variants: {
+    showTime: {
+      true: "before:content-[attr(data-time)]",
+    },
+  },
+});
+
+export const calendarCell = tv({
+  base: "min-h-12 border-l border-b border-gray-100 hover:bg-gray-50 transition-colors",
+});
+
+export const integrationCard = tv({
+  base: "flex items-center gap-4 p-4 border border-gray-200 rounded-lg transition-colors hover:border-gray-300",
+});
+
+export const integrationIcon = tv({
+  base: "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+  variants: {
+    provider: {
+      google: "bg-white border border-gray-200",
+      outlook: "bg-[#0078d4]",
+    },
+  },
+});
+
+export const integrationInfo = tv({
+  base: "flex-1 min-w-0",
+});
+
+export const integrationName = tv({
+  base: "text-sm font-medium text-gray-900",
+});
+
+export const integrationDescription = tv({
+  base: "text-sm text-gray-500",
+});
