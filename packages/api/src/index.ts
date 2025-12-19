@@ -1,38 +1,15 @@
 import { auth } from "@keeper.sh/auth";
 import { database } from "@keeper.sh/database";
-import { calendarSnapshotsTable } from "@keeper.sh/database/schema";
+import {
+  calendarSnapshotsTable,
+  remoteICalSourcesTable,
+} from "@keeper.sh/database/schema";
+import { pullRemoteCalendar } from "@keeper.sh/pull-calendar";
 import { log } from "@keeper.sh/log";
 import { BunRequest } from "bun";
 import { eq, and } from "drizzle-orm";
 
 type BunRouteCallback = (request: BunRequest<string>) => Promise<Response>;
-
-const ALLOWED_ORIGINS = [
-  "http://localhost:3001",
-  "http://127.0.0.1:3001",
-];
-
-const corsHeaders = (origin: string | null) => {
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
-
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  return headers;
-};
-
-const withCors = (response: Response, origin: string | null): Response => {
-  const headers = corsHeaders(origin);
-  for (const [key, value] of Object.entries(headers)) {
-    response.headers.set(key, value);
-  }
-  return response;
-};
 
 const withTracing = (callback: BunRouteCallback): BunRouteCallback => {
   return async (request) => {
@@ -44,22 +21,32 @@ const withTracing = (callback: BunRouteCallback): BunRouteCallback => {
   };
 };
 
+const getSession = async (request: Request) => {
+  const session = await auth.api.getSession({
+    headers: request.headers,
+  });
+  return session;
+};
+
+const withAuth = (
+  callback: (
+    request: BunRequest<string>,
+    userId: string,
+  ) => Promise<Response>,
+): BunRouteCallback => {
+  return async (request) => {
+    const session = await getSession(request);
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    return callback(request, session.user.id);
+  };
+};
+
 const server = Bun.serve({
   port: 3000,
   routes: {
-    "/api/auth/*": async (request) => {
-      const origin = request.headers.get("Origin");
-
-      if (request.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: corsHeaders(origin),
-        });
-      }
-
-      const response = await auth.handler(request);
-      return withCors(response, origin);
-    },
     "/users/:userId/snapshots": withTracing(async (request) => {
       const { userId } = request.params;
 
@@ -106,6 +93,68 @@ const server = Bun.serve({
         headers: { "Content-Type": "text/calendar" },
       });
     }),
+    "/api/calendar-sources": {
+      GET: withAuth(async (_request, userId) => {
+        const sources = await database
+          .select()
+          .from(remoteICalSourcesTable)
+          .where(eq(remoteICalSourcesTable.userId, userId));
+
+        return Response.json(sources);
+      }),
+      POST: withAuth(async (request, userId) => {
+        const body = await request.json();
+        const { name, url } = body as { name?: string; url?: string };
+
+        if (!url || !name) {
+          return Response.json(
+            { error: "Name and URL are required" },
+            { status: 400 },
+          );
+        }
+
+        try {
+          await pullRemoteCalendar("json", url);
+        } catch {
+          return Response.json(
+            { error: "URL does not return a valid iCal file" },
+            { status: 400 },
+          );
+        }
+
+        const [source] = await database
+          .insert(remoteICalSourcesTable)
+          .values({ userId, name, url })
+          .returning();
+
+        return Response.json(source, { status: 201 });
+      }),
+    },
+    "/api/calendar-sources/:id": {
+      DELETE: withAuth(async (request, userId) => {
+        const { id } = request.params;
+
+        if (!id) {
+          return Response.json({ error: "ID is required" }, { status: 400 });
+        }
+
+        const [deleted] = await database
+          .delete(remoteICalSourcesTable)
+          .where(
+            and(
+              eq(remoteICalSourcesTable.id, id),
+              eq(remoteICalSourcesTable.userId, userId),
+            ),
+          )
+          .returning();
+
+        if (!deleted) {
+          return Response.json({ error: "Not found" }, { status: 404 });
+        }
+
+        return Response.json({ success: true });
+      }),
+    },
   },
 });
 

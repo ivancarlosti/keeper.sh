@@ -17,8 +17,9 @@ export const remoteICalSourcesTable = pgTable("remote_ical_sources", {
   userId: text()
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  createdAt: timestamp().notNull().defaultNow(),
+  name: text().notNull(),
   url: text().notNull(),
+  createdAt: timestamp().notNull().defaultNow(),
 });
 
 export const calendarsTable = pgTable("calendars", {

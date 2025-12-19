@@ -109,7 +109,7 @@ export const integrationName = tv({
 });
 
 export const integrationDescription = tv({
-  base: "text-sm text-gray-500",
+  base: "text-sm text-gray-500 overflow-hidden truncate",
 });
 
 export const calendarEvent = tv({
@@ -242,7 +242,7 @@ export const billingSavingsBadge = tv({
 });
 
 export const settingsSection = tv({
-  base: "flex flex-col gap-4 max-w-md",
+  base: "flex flex-col gap-4",
 });
 
 export const settingsCard = tv({

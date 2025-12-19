@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@base-ui/react/button";
 import { Dialog } from "@base-ui/react/dialog";
@@ -15,20 +16,12 @@ import {
   integrationDescription,
 } from "@/styles";
 
-const calendarSources = [
-  {
-    id: "1",
-    name: "Work Calendar",
-    url: "https://calendar.google.com/calendar/ical/...",
-    lastSynced: "15m ago",
-  },
-  {
-    id: "2",
-    name: "Personal",
-    url: "https://outlook.office365.com/owa/calendar/...",
-    lastSynced: "2h ago",
-  },
-];
+interface CalendarSource {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+}
 
 const destinations = [
   {
@@ -54,11 +47,79 @@ export default function IntegrationsPage() {
   const icalUrl = "https://keeper.sh/cal/abc123.ics";
   const toastManager = Toast.useToastManager();
 
+  const [sources, setSources] = useState<CalendarSource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function fetchSources() {
+    try {
+      const response = await fetch("/api/calendar-sources");
+      if (response.ok) {
+        const data = await response.json();
+        setSources(data);
+      }
+    } catch {
+      console.error("Failed to fetch sources");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchSources();
+  }, []);
+
+  async function handleAddSource(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name") as string;
+    const url = formData.get("url") as string;
+
+    try {
+      const response = await fetch("/api/calendar-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, url }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to add source");
+      }
+
+      await fetchSources();
+      setIsDialogOpen(false);
+      toastManager.add({ title: "Calendar source added" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add source");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleRemoveSource(id: string) {
+    try {
+      const response = await fetch(`/api/calendar-sources/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setSources(sources.filter((s) => s.id !== id));
+        toastManager.add({ title: "Calendar source removed" });
+      }
+    } catch {
+      toastManager.add({ title: "Failed to remove source" });
+    }
+  }
+
   async function copyToClipboard() {
     await navigator.clipboard.writeText(icalUrl);
-    toastManager.add({
-      title: "Copied to clipboard",
-    });
+    toastManager.add({ title: "Copied to clipboard" });
   }
 
   return (
@@ -73,20 +134,30 @@ export default function IntegrationsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
-          {calendarSources.map((source) => (
-            <div key={source.id} className={integrationCard()}>
-              <div className={integrationInfo()}>
-                <div className={integrationName()}>{source.name}</div>
-                <div className={integrationDescription()}>
-                  Last synced {source.lastSynced}
-                </div>
-              </div>
-              <Button className={button({ variant: "secondary" })}>
-                Remove
-              </Button>
+          {isLoading && (
+            <div className="text-sm text-gray-500 py-4">Loading...</div>
+          )}
+          {!isLoading && sources.length === 0 && (
+            <div className="text-sm text-gray-500 py-4">
+              No calendar sources added yet
             </div>
-          ))}
-          <Dialog.Root>
+          )}
+          {!isLoading &&
+            sources.map((source) => (
+              <div key={source.id} className={integrationCard()}>
+                <div className={integrationInfo()}>
+                  <div className={integrationName()}>{source.name}</div>
+                  <div className={integrationDescription()}>{source.url}</div>
+                </div>
+                <Button
+                  onClick={() => handleRemoveSource(source.id)}
+                  className={button({ variant: "secondary" })}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          <Dialog.Root open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <Dialog.Trigger className={button({ variant: "secondary" })}>
               Add iCal Link
             </Dialog.Trigger>
@@ -99,16 +170,18 @@ export default function IntegrationsPage() {
                 <Dialog.Description className="text-sm text-gray-500 mb-4">
                   Enter an iCal URL to import events from another calendar.
                 </Dialog.Description>
-                <form className="flex flex-col gap-4">
+                <form onSubmit={handleAddSource} className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="source-name" className={label()}>
                       Name
                     </label>
                     <input
                       id="source-name"
+                      name="name"
                       type="text"
                       placeholder="Work Calendar"
                       autoComplete="off"
+                      required
                       className={input()}
                     />
                   </div>
@@ -118,21 +191,25 @@ export default function IntegrationsPage() {
                     </label>
                     <input
                       id="source-url"
+                      name="url"
                       type="url"
                       placeholder="https://calendar.google.com/calendar/ical/..."
                       autoComplete="off"
+                      required
                       className={input()}
                     />
                   </div>
+                  {error && <p className="text-sm text-red-600">{error}</p>}
                   <div className="flex gap-2 justify-end mt-2">
                     <Dialog.Close className={button({ variant: "secondary" })}>
                       Cancel
                     </Dialog.Close>
                     <Button
                       type="submit"
+                      disabled={isSubmitting}
                       className={button({ variant: "primary" })}
                     >
-                      Add Source
+                      {isSubmitting ? "Adding..." : "Add Source"}
                     </Button>
                   </div>
                 </form>
