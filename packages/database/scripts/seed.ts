@@ -29,7 +29,7 @@ const seed = async () => {
     await database.insert(calendarSnapshotsTable).values(snapshots);
     log.debug("seeded %s snapshots for user '%s'", snapshots.length, user.id);
 
-    const snapshotIds = snapshots.map((s) => s.id);
+    const snapshotIds = snapshots.map((snapshot) => snapshot.id);
     const calendars = generateCalendars(env.API_BASE_URL, user.id, snapshotIds);
     await database.insert(calendarsTable).values(calendars);
     log.debug("seeded %s calendars for user '%s'", calendars.length, user.id);

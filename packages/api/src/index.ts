@@ -36,7 +36,8 @@ const server = Bun.serve({
           ),
         );
 
-      return Response.json(snapshots.map((s) => s.id));
+      const snapshotIds = snapshots.map(({ id }) => id);
+      return Response.json(snapshotIds);
     }),
 
     "/snapshots/:id": makeLoggedRequest(async (request) => {
