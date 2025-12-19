@@ -41,7 +41,7 @@ export const navLink = tv({
 });
 
 export const sidebarLink = tv({
-  base: "px-3 py-2 rounded-md text-sm font-medium no-underline transition-colors",
+  base: "px-3 py-2 rounded-md text-sm font-medium no-underline transition-colors pr-12",
   variants: {
     active: {
       true: "bg-gray-100 text-gray-900",
