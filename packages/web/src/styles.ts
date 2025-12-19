@@ -240,3 +240,19 @@ export const billingToggle = tv({
 export const billingSavingsBadge = tv({
   base: "ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700",
 });
+
+export const settingsSection = tv({
+  base: "flex flex-col gap-4 max-w-md",
+});
+
+export const settingsCard = tv({
+  base: "flex flex-col gap-4 p-4 border border-gray-200 rounded-lg",
+});
+
+export const settingsLabel = tv({
+  base: "text-sm font-medium text-gray-500",
+});
+
+export const settingsValue = tv({
+  base: "text-sm text-gray-900",
+});

@@ -22,5 +22,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: !env.NO_EMAIL_REQUIRED,
   },
+  user: {
+    deleteUser: {
+      enabled: true,
+    },
+  },
   plugins,
 });

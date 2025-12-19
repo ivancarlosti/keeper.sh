@@ -1,12 +1,12 @@
 import env from "@keeper.sh/env/database/seed";
 import { database } from "@keeper.sh/database";
 import {
-  usersTable,
   calendarsTable,
   calendarSnapshotsTable,
   remoteICalSourcesTable,
   eventStatesTable,
 } from "@keeper.sh/database/schema";
+import { user as userTable } from "@keeper.sh/database/auth-schema";
 import {
   generateUsers,
   generateCalendars,
@@ -21,7 +21,7 @@ const seed = async () => {
   log.info("seeding database");
 
   const users = generateUsers(5);
-  await database.insert(usersTable).values(users);
+  await database.insert(userTable).values(users);
   log.debug("seeded %s users", users.length);
 
   for (const user of users) {

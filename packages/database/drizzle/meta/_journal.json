@@ -50,6 +50,13 @@
       "when": 1766120385911,
       "tag": "0006_curious_orphan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1766134821358,
+      "tag": "0007_heavy_pretty_boy",
+      "breakpoints": true
     }
   ]
 }

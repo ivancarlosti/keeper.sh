@@ -1,11 +1,5 @@
 import { database } from "@keeper.sh/database";
-import {
-  usersTable,
-  calendarsTable,
-  calendarSnapshotsTable,
-  remoteICalSourcesTable,
-  eventStatesTable,
-} from "@keeper.sh/database/schema";
+import { user as userTable } from "@keeper.sh/database/auth-schema";
 import { log } from "@keeper.sh/log";
 import { getTableName } from "drizzle-orm";
 import type { PgTableWithColumns, TableConfig } from "drizzle-orm/pg-core";
@@ -25,29 +19,9 @@ const makeLogDeletedRecords = <
 const clear = async () => {
   log.info("clearing database");
 
-  const logDeleteEventsStates = makeLogDeletedRecords(eventStatesTable);
-  const logDeleteCalendars = makeLogDeletedRecords(calendarsTable);
-  const logDeleteRemoteICals = makeLogDeletedRecords(remoteICalSourcesTable);
-  const logDeleteUsers = makeLogDeletedRecords(usersTable);
+  const logDeleteUsers = makeLogDeletedRecords(userTable);
 
-  await database
-    .delete(eventStatesTable)
-    .returning()
-    .then(logDeleteEventsStates);
-
-  await database.delete(calendarsTable).returning().then(logDeleteCalendars);
-
-  await database
-    .delete(calendarSnapshotsTable)
-    .returning()
-    .then(logDeleteRemoteICals);
-
-  await database
-    .delete(remoteICalSourcesTable)
-    .returning()
-    .then(logDeleteRemoteICals);
-
-  await database.delete(usersTable).returning().then(logDeleteUsers);
+  await database.delete(userTable).returning().then(logDeleteUsers);
 
   log.info("database cleared");
 };

@@ -55,3 +55,51 @@ export async function getSession() {
 
   return response.json();
 }
+
+export async function updateUser(data: { name?: string; image?: string }) {
+  const response = await fetch("/api/auth/update-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message ?? "Failed to update profile");
+  }
+
+  return response.json();
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+) {
+  const response = await fetch("/api/auth/change-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message ?? "Failed to change password");
+  }
+
+  return response.json();
+}
+
+export async function deleteAccount(password: string) {
+  const response = await fetch("/api/auth/delete-user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message ?? "Failed to delete account");
+  }
+
+  return response.json();
+}
