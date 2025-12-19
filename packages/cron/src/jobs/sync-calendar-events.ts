@@ -66,27 +66,31 @@ const addEvents = async (
 const syncCalendar = async (calendar: Calendar) => {
   log.debug("syncing calendar '%s'", calendar.id);
 
-  const icsCalendar = await getLatestSnapshot(calendar.userId);
-  if (!icsCalendar) {
-    log.debug("no snapshot found for calendar '%s'", calendar.id);
-    return;
-  }
+  try {
+    const icsCalendar = await getLatestSnapshot(calendar.userId);
+    if (!icsCalendar) {
+      log.debug("no snapshot found for calendar '%s'", calendar.id);
+      return;
+    }
 
-  const remoteEvents = parseIcsEvents(icsCalendar);
-  const storedEvents = await getStoredEvents(calendar.id);
-  const { toAdd, toRemove } = diffEvents(remoteEvents, storedEvents);
+    const remoteEvents = parseIcsEvents(icsCalendar);
+    const storedEvents = await getStoredEvents(calendar.id);
+    const { toAdd, toRemove } = diffEvents(remoteEvents, storedEvents);
 
-  if (toRemove.length > 0) {
-    const eventIds = toRemove.map((event) => event.id);
-    await removeEvents(calendar.id, eventIds);
-  }
+    if (toRemove.length > 0) {
+      const eventIds = toRemove.map((event) => event.id);
+      await removeEvents(calendar.id, eventIds);
+    }
 
-  if (toAdd.length > 0) {
-    await addEvents(calendar.id, toAdd);
-  }
+    if (toAdd.length > 0) {
+      await addEvents(calendar.id, toAdd);
+    }
 
-  if (toAdd.length === 0 && toRemove.length === 0) {
-    log.debug("calendar '%s' is in sync", calendar.id);
+    if (toAdd.length === 0 && toRemove.length === 0) {
+      log.debug("calendar '%s' is in sync", calendar.id);
+    }
+  } catch (error) {
+    log.error({ error, calendarId: calendar.id }, "failed to sync calendar");
   }
 };
 
@@ -97,12 +101,7 @@ export default {
     const calendars = await database.select().from(calendarsTable);
     log.debug("syncing %s calendars", calendars.length);
 
-    for (const calendar of calendars) {
-      try {
-        await syncCalendar(calendar);
-      } catch (error) {
-        log.error({ error, calendarId: calendar.id }, "failed to sync calendar");
-      }
-    }
+    const syncs = calendars.map((calendar) => syncCalendar(calendar));
+    await Promise.allSettled(syncs);
   },
 } satisfies CronOptions;
