@@ -12,6 +12,7 @@ export type GeneratedSnapshot = {
   id: string;
   userId: string;
   ical: string;
+  json: unknown;
   public: boolean;
   createdAt: Date;
 };
@@ -29,7 +30,12 @@ const generateIcsEvent = (): IcsEvent => {
   };
 };
 
-const generateIcsContent = (): string => {
+type GeneratedCalendar = {
+  ical: string;
+  json: IcsCalendar;
+};
+
+const generateCalendar = (): GeneratedCalendar => {
   const eventCount = randomInt(3, 10);
   const events: IcsEvent[] = Array.from({ length: eventCount }, generateIcsEvent);
 
@@ -39,16 +45,23 @@ const generateIcsContent = (): string => {
     events,
   };
 
-  return generateIcsCalendar(calendar);
+  return {
+    ical: generateIcsCalendar(calendar),
+    json: calendar,
+  };
 };
 
-export const generateSnapshot = (userId: string): GeneratedSnapshot => ({
-  id: randomUUID(),
-  userId,
-  ical: generateIcsContent(),
-  public: true,
-  createdAt: randomPastDate(14),
-});
+export const generateSnapshot = (userId: string): GeneratedSnapshot => {
+  const { ical, json } = generateCalendar();
+  return {
+    id: randomUUID(),
+    userId,
+    ical,
+    json,
+    public: true,
+    createdAt: randomPastDate(14),
+  };
+};
 
 export const generateSnapshots = (userId: string, count: number): GeneratedSnapshot[] =>
   Array.from({ length: count }, () => generateSnapshot(userId));

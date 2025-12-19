@@ -16,6 +16,8 @@
     "@keeper.sh/database": "workspace:*",
     "@keeper.sh/pull-calendar": "workspace:*",
     "@keeper.sh/log": "workspace:*",
-    "cronbake": "0.4.0"
+    "@keeper.sh/sync-events": "workspace:*",
+    "cronbake": "0.4.0",
+    "drizzle-orm": "0.45.1"
   }
 }

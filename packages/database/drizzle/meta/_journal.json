@@ -29,6 +29,13 @@
       "when": 1766107779137,
       "tag": "0003_nervous_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766117711017,
+      "tag": "0004_strong_midnight",
+      "breakpoints": true
     }
   ]
 }

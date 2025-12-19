@@ -39,7 +39,6 @@ const server = Bun.serve({
       const snapshotIds = snapshots.map(({ id }) => id);
       return Response.json(snapshotIds);
     }),
-
     "/snapshots/:id": withTracing(async (request) => {
       const id = request.params.id?.replace(/\.ics$/, "");
 

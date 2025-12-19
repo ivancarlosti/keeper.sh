@@ -24,7 +24,9 @@
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/log": "workspace:*",
         "@keeper.sh/pull-calendar": "workspace:*",
+        "@keeper.sh/sync-events": "workspace:*",
         "cronbake": "0.4.0",
+        "drizzle-orm": "0.45.1",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -76,6 +78,16 @@
       "name": "@keeper.sh/pull-calendar",
       "dependencies": {
         "@keeper.sh/log": "workspace:*",
+        "ts-ics": "2.4.0",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+      },
+    },
+    "packages/sync-events": {
+      "name": "@keeper.sh/sync-events",
+      "dependencies": {
         "ts-ics": "2.4.0",
       },
       "devDependencies": {
@@ -175,6 +187,8 @@
     "@keeper.sh/log": ["@keeper.sh/log@workspace:packages/log"],
 
     "@keeper.sh/pull-calendar": ["@keeper.sh/pull-calendar@workspace:packages/pull-calendar"],
+
+    "@keeper.sh/sync-events": ["@keeper.sh/sync-events@workspace:packages/sync-events"],
 
     "@keeper.sh/synthetic-data": ["@keeper.sh/synthetic-data@workspace:packages/synthetic-data"],
 

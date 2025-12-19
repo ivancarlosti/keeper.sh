@@ -7,32 +7,34 @@ import {
 import { pullRemoteCalendar } from "@keeper.sh/pull-calendar";
 import { log } from "@keeper.sh/log";
 
-type PullAndLogRemoteCalendarOptions = {
-  url: string;
+type FetchResult = {
+  ical: string;
+  json: unknown;
   userId: string;
 };
 
-const pullAndLogRemoteCalendar = async (
+const fetchRemoteCalendar = async (
   id: string,
-  { url, userId }: PullAndLogRemoteCalendarOptions,
-) => {
+  url: string,
+  userId: string,
+): Promise<FetchResult> => {
   log.debug("fetching remote calendar '%s'", id);
 
   try {
-    const result = await pullRemoteCalendar("icap", url);
+    const { ical, json } = await pullRemoteCalendar(["ical", "json"], url);
     log.debug("fetched remote calendar '%s'", id);
-    return { result, userId };
+    return { ical, json, userId };
   } catch (error) {
     log.error(error, "could not fetch remote calendar '%s'", id);
     throw error;
   }
 };
 
-export const insertSnapshot = async (
+const insertSnapshot = async (
   payload: typeof calendarSnapshotsTable.$inferInsert,
 ) => {
   try {
-    database.insert(calendarSnapshotsTable).values(payload);
+    await database.insert(calendarSnapshotsTable).values(payload);
   } catch (error) {
     log.error(error, "failed to submit entry into the database");
   }
@@ -44,20 +46,18 @@ export default {
   immediate: true,
   async callback() {
     const remoteSources = await database.select().from(remoteICalSourcesTable);
+    log.debug("fetching %s remote sources", remoteSources.length);
 
-    log.debug({ count: remoteSources.length }, "remote sources");
-
-    const fetches = remoteSources.map(({ id, url, userId }) => {
-      return pullAndLogRemoteCalendar(id, { url, userId });
-    });
+    const fetches = remoteSources.map(({ id, url, userId }) =>
+      fetchRemoteCalendar(id, url, userId),
+    );
 
     const settlements = await Promise.allSettled(fetches);
 
     for (const settlement of settlements) {
       if (settlement.status === "rejected") continue;
-
-      const { value } = settlement;
-      insertSnapshot({ userId: value.userId, ical: value.result });
+      const { ical, json, userId } = settlement.value;
+      await insertSnapshot({ userId, ical, json });
     }
   },
 } satisfies CronOptions;
