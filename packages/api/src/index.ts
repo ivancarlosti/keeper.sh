@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 
 type BunRouteCallback = (request: BunRequest<string>) => Promise<Response>;
 
-const makeLoggedRequest = (callback: BunRouteCallback): BunRouteCallback => {
+const withTracing = (callback: BunRouteCallback): BunRouteCallback => {
   return async (request) => {
     const url = request.url;
     log.trace("request to %s started", url);
@@ -19,7 +19,7 @@ const makeLoggedRequest = (callback: BunRouteCallback): BunRouteCallback => {
 const server = Bun.serve({
   port: 3000,
   routes: {
-    "/users/:userId/snapshots": makeLoggedRequest(async (request) => {
+    "/users/:userId/snapshots": withTracing(async (request) => {
       const { userId } = request.params;
 
       if (!userId) {
@@ -40,7 +40,7 @@ const server = Bun.serve({
       return Response.json(snapshotIds);
     }),
 
-    "/snapshots/:id": makeLoggedRequest(async (request) => {
+    "/snapshots/:id": withTracing(async (request) => {
       const id = request.params.id?.replace(/\.ics$/, "");
 
       if (!id) {
