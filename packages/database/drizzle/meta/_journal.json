@@ -64,6 +64,27 @@
       "when": 1766135416743,
       "tag": "0008_vengeful_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1766136510379,
+      "tag": "0009_daily_thor_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1766137153851,
+      "tag": "0010_heavy_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1766137380485,
+      "tag": "0011_round_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

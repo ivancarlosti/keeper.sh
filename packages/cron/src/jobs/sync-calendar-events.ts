@@ -1,36 +1,30 @@
 import type { CronOptions } from "cronbake";
-import type { IcsCalendar } from "ts-ics";
 import { database } from "@keeper.sh/database";
 import {
-  calendarsTable,
+  remoteICalSourcesTable,
   eventStatesTable,
   calendarSnapshotsTable,
 } from "@keeper.sh/database/schema";
 import { parseIcsEvents, diffEvents } from "@keeper.sh/sync-events";
+import { convertIcsCalendar } from "ts-ics";
 import { log } from "@keeper.sh/log";
 import { eq, inArray, desc } from "drizzle-orm";
 
-type Calendar = typeof calendarsTable.$inferSelect;
+type Source = typeof remoteICalSourcesTable.$inferSelect;
 
-const isIcsCalendar = (value: unknown): value is IcsCalendar =>
-  typeof value === "object" && value !== null && "version" in value;
-
-const getLatestSnapshot = async (userId: string) => {
+const getLatestSnapshot = async (sourceId: string) => {
   const [snapshot] = await database
-    .select({ json: calendarSnapshotsTable.json })
+    .select({ ical: calendarSnapshotsTable.ical })
     .from(calendarSnapshotsTable)
-    .where(eq(calendarSnapshotsTable.userId, userId))
+    .where(eq(calendarSnapshotsTable.sourceId, sourceId))
     .orderBy(desc(calendarSnapshotsTable.createdAt))
     .limit(1);
 
-  if (!snapshot?.json || !isIcsCalendar(snapshot.json)) {
-    return null;
-  }
-
-  return snapshot.json;
+  if (!snapshot?.ical) return null;
+  return convertIcsCalendar(undefined, snapshot.ical);
 };
 
-const getStoredEvents = async (calendarId: string) => {
+const getStoredEvents = async (sourceId: string) => {
   return database
     .select({
       id: eventStatesTable.id,
@@ -38,70 +32,71 @@ const getStoredEvents = async (calendarId: string) => {
       endTime: eventStatesTable.endTime,
     })
     .from(eventStatesTable)
-    .where(eq(eventStatesTable.calendarId, calendarId));
+    .where(eq(eventStatesTable.sourceId, sourceId));
 };
 
-const removeEvents = async (calendarId: string, eventIds: string[]) => {
+const removeEvents = async (sourceId: string, eventIds: string[]) => {
   await database
     .delete(eventStatesTable)
     .where(inArray(eventStatesTable.id, eventIds));
 
-  log.debug("removed %s events from calendar '%s'", eventIds.length, calendarId);
+  log.debug("removed %s events from source '%s'", eventIds.length, sourceId);
 };
 
 const addEvents = async (
-  calendarId: string,
+  sourceId: string,
   events: { startTime: Date; endTime: Date }[],
 ) => {
   const rows = events.map((event) => ({
-    calendarId,
+    sourceId,
     startTime: event.startTime,
     endTime: event.endTime,
   }));
 
   await database.insert(eventStatesTable).values(rows);
-  log.debug("added %s events to calendar '%s'", events.length, calendarId);
+  log.debug("added %s events to source '%s'", events.length, sourceId);
 };
 
-const syncCalendar = async (calendar: Calendar) => {
-  log.debug("syncing calendar '%s'", calendar.id);
+const syncSource = async (source: Source) => {
+  log.debug("syncing source '%s'", source.id);
 
   try {
-    const icsCalendar = await getLatestSnapshot(calendar.userId);
+    const icsCalendar = await getLatestSnapshot(source.id);
     if (!icsCalendar) {
-      log.debug("no snapshot found for calendar '%s'", calendar.id);
+      log.debug("no snapshot found for source '%s'", source.id);
       return;
     }
 
     const remoteEvents = parseIcsEvents(icsCalendar);
-    const storedEvents = await getStoredEvents(calendar.id);
+    const storedEvents = await getStoredEvents(source.id);
     const { toAdd, toRemove } = diffEvents(remoteEvents, storedEvents);
 
     if (toRemove.length > 0) {
       const eventIds = toRemove.map((event) => event.id);
-      await removeEvents(calendar.id, eventIds);
+      await removeEvents(source.id, eventIds);
     }
 
     if (toAdd.length > 0) {
-      await addEvents(calendar.id, toAdd);
+      await addEvents(source.id, toAdd);
     }
 
     if (toAdd.length === 0 && toRemove.length === 0) {
-      log.debug("calendar '%s' is in sync", calendar.id);
+      log.debug("source '%s' is in sync", source.id);
     }
   } catch (error) {
-    log.error({ error, calendarId: calendar.id }, "failed to sync calendar");
+    log.error(error, "failed to sync source '%s'", source.id);
   }
 };
 
 export default {
   name: import.meta.file,
   cron: "@every_5_minutes",
+  immediate: true,
   async callback() {
-    const calendars = await database.select().from(calendarsTable);
-    log.debug("syncing %s calendars", calendars.length);
+    const sources = await database.select().from(remoteICalSourcesTable);
+    log.debug("syncing %s sources", sources.length);
 
-    const syncs = calendars.map((calendar) => syncCalendar(calendar));
+    const syncs = sources.map((source) => syncSource(source));
     await Promise.allSettled(syncs);
   },
 } satisfies CronOptions;

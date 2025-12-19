@@ -9,23 +9,21 @@ import { log } from "@keeper.sh/log";
 
 type FetchResult = {
   ical: string;
-  json: unknown;
-  userId: string;
+  sourceId: string;
 };
 
 const fetchRemoteCalendar = async (
-  id: string,
+  sourceId: string,
   url: string,
-  userId: string,
 ): Promise<FetchResult> => {
-  log.debug("fetching remote calendar '%s'", id);
+  log.debug("fetching remote calendar '%s'", sourceId);
 
   try {
-    const { ical, json } = await pullRemoteCalendar(["ical", "json"], url);
-    log.debug("fetched remote calendar '%s'", id);
-    return { ical, json, userId };
+    const { ical } = await pullRemoteCalendar("ical", url);
+    log.debug("fetched remote calendar '%s'", sourceId);
+    return { ical, sourceId };
   } catch (error) {
-    log.error(error, "could not fetch remote calendar '%s'", id);
+    log.error(error, "could not fetch remote calendar '%s'", sourceId);
     throw error;
   }
 };
@@ -47,16 +45,16 @@ export default {
     const remoteSources = await database.select().from(remoteICalSourcesTable);
     log.debug("fetching %s remote sources", remoteSources.length);
 
-    const fetches = remoteSources.map(({ id, url, userId }) =>
-      fetchRemoteCalendar(id, url, userId),
+    const fetches = remoteSources.map(({ id, url }) =>
+      fetchRemoteCalendar(id, url),
     );
 
     const settlements = await Promise.allSettled(fetches);
 
     for (const settlement of settlements) {
       if (settlement.status === "rejected") continue;
-      const { ical, json, userId } = settlement.value;
-      await insertSnapshot({ userId, ical, json });
+      const { ical, sourceId } = settlement.value;
+      await insertSnapshot({ sourceId, ical });
     }
   },
 } satisfies CronOptions;

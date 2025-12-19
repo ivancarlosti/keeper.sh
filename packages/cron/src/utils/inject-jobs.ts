@@ -6,7 +6,7 @@ export const injectJobs = (configurations: CronOptions[]) => {
     ...job,
     callback: new Proxy(callback, {
       apply: (...parameters) => {
-        log.info({ "job.name": job.name }, "running cron job");
+        log.info("running cron job %s", job.name);
         return Reflect.apply(...parameters);
       },
     }),
