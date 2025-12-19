@@ -1,7 +1,7 @@
-import { Form } from "@base-ui-components/react/form";
-import { Field } from "@base-ui-components/react/field";
-import { Input } from "@base-ui-components/react/input";
-import { Button } from "@base-ui-components/react/button";
+import { Form } from "@base-ui/react/form";
+import { Field } from "@base-ui/react/field";
+import { Input } from "@base-ui/react/input";
+import { Button } from "@base-ui/react/button";
 import { input, label, submitButton } from "@/styles";
 
 export function AuthFormContainer({ children }: { children: React.ReactNode }) {

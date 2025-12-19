@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@base-ui-components/react/button";
+import { Button } from "@base-ui/react/button";
 import { useAuth } from "@/components/auth-provider";
 import { signOut } from "@/lib/auth";
 import { button } from "@/styles";

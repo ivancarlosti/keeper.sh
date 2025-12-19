@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
+import clsx from "clsx";
 import { AuthProvider } from "@/components/auth-provider";
 
 const outfit = Outfit({
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.className} antialiased`}>
+      <body className={clsx(outfit.className, "antialiased")}>
         <AuthProvider>
           <div className="isolate min-h-dvh flex flex-col">{children}</div>
         </AuthProvider>

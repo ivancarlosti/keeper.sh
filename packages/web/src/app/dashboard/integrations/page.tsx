@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Button } from "@base-ui-components/react/button";
-import { Dialog } from "@base-ui-components/react/dialog";
+import { Button } from "@base-ui/react/button";
+import { Dialog } from "@base-ui/react/dialog";
+import { Toast } from "@/components/toast-provider";
 import {
   button,
   input,
@@ -51,16 +52,22 @@ const destinations = [
 
 export default function IntegrationsPage() {
   const icalUrl = "https://keeper.sh/cal/abc123.ics";
+  const toastManager = Toast.useToastManager();
 
   async function copyToClipboard() {
     await navigator.clipboard.writeText(icalUrl);
+    toastManager.add({
+      title: "Copied to clipboard",
+    });
   }
 
   return (
     <div className="flex-1 flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Calendar Sources</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Calendar Sources
+          </h2>
           <p className="text-sm text-gray-500 mt-0.5">
             Add iCal links to import events from other calendars
           </p>
@@ -74,7 +81,9 @@ export default function IntegrationsPage() {
                   Last synced {source.lastSynced}
                 </div>
               </div>
-              <Button className={button({ variant: "secondary" })}>Remove</Button>
+              <Button className={button({ variant: "secondary" })}>
+                Remove
+              </Button>
             </div>
           ))}
           <Dialog.Root>
@@ -117,7 +126,10 @@ export default function IntegrationsPage() {
                     <Dialog.Close className={button({ variant: "secondary" })}>
                       Cancel
                     </Dialog.Close>
-                    <Button type="submit" className={button({ variant: "primary" })}>
+                    <Button
+                      type="submit"
+                      className={button({ variant: "primary" })}
+                    >
                       Add Source
                     </Button>
                   </div>
@@ -150,9 +162,13 @@ export default function IntegrationsPage() {
               </div>
               <div className={integrationInfo()}>
                 <div className={integrationName()}>{destination.name}</div>
-                <div className={integrationDescription()}>{destination.description}</div>
+                <div className={integrationDescription()}>
+                  {destination.description}
+                </div>
               </div>
-              <Button className={button({ variant: "secondary" })}>Connect</Button>
+              <Button className={button({ variant: "secondary" })}>
+                Connect
+              </Button>
             </div>
           ))}
         </div>
@@ -160,7 +176,9 @@ export default function IntegrationsPage() {
 
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Your iCal Link</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Your iCal Link
+          </h2>
           <p className="text-sm text-gray-500 mt-0.5">
             Subscribe to this link to view your aggregated events
           </p>
@@ -170,9 +188,12 @@ export default function IntegrationsPage() {
             type="text"
             value={icalUrl}
             readOnly
-            className={input() + " flex-1 bg-gray-50 text-gray-600"}
+            className={input({ readonly: true, className: "flex-1" })}
           />
-          <Button onClick={copyToClipboard} className={button({ variant: "secondary" })}>
+          <Button
+            onClick={copyToClipboard}
+            className={button({ variant: "secondary" })}
+          >
             Copy
           </Button>
         </div>

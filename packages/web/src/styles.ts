@@ -21,6 +21,11 @@ export const submitButton = tv({
 
 export const input = tv({
   base: "w-full py-2.5 px-3 border border-gray-300 rounded-md text-base transition-[border-color,box-shadow] duration-150 focus:outline-none focus:border-gray-900 focus:ring-3 focus:ring-black/10",
+  variants: {
+    readonly: {
+      true: "bg-gray-50 text-gray-600",
+    },
+  },
 });
 
 export const label = tv({
