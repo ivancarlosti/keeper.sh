@@ -1,4 +1,3 @@
-import { log } from "@keeper.sh/log";
 import { fetch } from "bun";
 import { convertIcsCalendar } from "ts-ics";
 
