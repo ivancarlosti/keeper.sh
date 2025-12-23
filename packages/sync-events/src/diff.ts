@@ -1,6 +1,8 @@
 import type { IcsCalendar, IcsEvent, IcsDuration } from "ts-ics";
 import type { EventTimeSlot, StoredEventTimeSlot, EventDiff } from "./types";
 
+const FILTER_SUFFIX = "@keeper.sh";
+
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = MS_PER_SECOND * 60;
 const MS_PER_HOUR = MS_PER_MINUTE * 60;
@@ -30,14 +32,23 @@ const getEventEndTime = (event: IcsEvent, startTime: Date): Date => {
   return startTime;
 };
 
+const isKeeperEvent = (uid: string | undefined): boolean =>
+  uid?.endsWith(FILTER_SUFFIX) ?? false;
+
 export const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
-  return (calendar.events ?? []).map((event) => {
+  const result: EventTimeSlot[] = [];
+
+  for (const event of calendar.events ?? []) {
+    if (isKeeperEvent(event.uid)) continue;
+
     const startTime = event.start.date;
-    return {
+    result.push({
       startTime,
       endTime: getEventEndTime(event, startTime),
-    };
-  });
+    });
+  }
+
+  return result;
 };
 
 const timeSlotKey = (slot: EventTimeSlot): string =>
