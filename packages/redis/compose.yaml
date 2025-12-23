@@ -1,0 +1,14 @@
+name: keeper
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: keeper-redis
+    ports:
+      - 6379:6379
+    volumes:
+      - keeper-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  keeper-redis-data:
