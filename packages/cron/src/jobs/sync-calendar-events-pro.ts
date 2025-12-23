@@ -1,28 +1,25 @@
 import type { CronOptions } from "cronbake";
 import { log } from "@keeper.sh/log";
-import {
-  getGoogleAccountForUser,
-  syncGoogleAccount,
-} from "@keeper.sh/integration-google-calendar";
+import { GoogleCalendarProvider } from "@keeper.sh/integration-google-calendar";
 import {
   fetchAndSyncSource,
   getSourcesByPlan,
   type Source,
 } from "../lib/sync-utils";
 
+const destinationProviders = [GoogleCalendarProvider];
+
 const syncUserSources = async (userId: string, sources: Source[]) => {
   await Promise.allSettled(sources.map(fetchAndSyncSource));
-
-  const googleAccount = await getGoogleAccountForUser(userId);
-  if (!googleAccount) return;
-  await syncGoogleAccount(googleAccount);
+  await Promise.allSettled(
+    destinationProviders.map((Provider) => Provider.syncForUser(userId)),
+  );
 };
 
 export default {
   name: import.meta.file,
   cron: "@every_5_minutes",
   immediate: true,
-  delay: "1m",
   async callback() {
     const sources = await getSourcesByPlan("pro");
     log.debug("syncing %s pro sources", sources.length);

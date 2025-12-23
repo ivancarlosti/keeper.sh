@@ -19,11 +19,23 @@ export interface DeleteResult {
   error?: string;
 }
 
+export interface SyncResult {
+  added: number;
+  removed: number;
+}
+
+export interface RemoteEvent {
+  uid: string;
+}
+
 export interface ProviderConfig {
   userId: string;
 }
 
 export interface GoogleCalendarConfig extends ProviderConfig {
+  accountId: string;
   accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresAt: Date;
   calendarId: string;
 }

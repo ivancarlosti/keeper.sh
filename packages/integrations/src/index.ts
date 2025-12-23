@@ -8,6 +8,8 @@ export type {
   SyncableEvent,
   PushResult,
   DeleteResult,
+  SyncResult,
+  RemoteEvent,
   ProviderConfig,
   GoogleCalendarConfig,
 } from "./types";
