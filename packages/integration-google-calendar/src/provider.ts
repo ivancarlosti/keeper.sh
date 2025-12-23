@@ -86,22 +86,17 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-    let response: Response;
-    try {
-      response = await fetch(GOOGLE_TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: env.GOOGLE_CLIENT_ID,
-          client_secret: env.GOOGLE_CLIENT_SECRET,
-          refresh_token: refreshToken,
-          grant_type: "refresh_token",
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.GOOGLE_CLIENT_ID,
+        client_secret: env.GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     this.childLog.debug(
       { status: response.status },
@@ -232,7 +227,12 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
 
       for (const event of data.items ?? []) {
         if (event.iCalUID && this.isKeeperEvent(event.iCalUID)) {
-          remoteEvents.push({ uid: event.iCalUID });
+          const startTime = this.parseEventTime(event.start);
+          const endTime = this.parseEventTime(event.end);
+
+          if (startTime && endTime) {
+            remoteEvents.push({ uid: event.iCalUID, startTime, endTime });
+          }
         }
       }
 
@@ -401,6 +401,14 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
     const body = await response.json();
     const { items } = googleEventListSchema.assert(body);
     return items?.[0] ?? null;
+  }
+
+  private parseEventTime(
+    time: { dateTime?: string; date?: string } | undefined,
+  ): Date | null {
+    if (time?.dateTime) return new Date(time.dateTime);
+    if (time?.date) return new Date(time.date);
+    return null;
   }
 
   private toGoogleEvent(event: SyncableEvent, uid: string): GoogleEvent {

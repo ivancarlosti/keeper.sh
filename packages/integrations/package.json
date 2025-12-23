@@ -9,7 +9,8 @@
     "@keeper.sh/broadcast": "workspace:*",
     "@keeper.sh/data-schemas": "workspace:*",
     "@keeper.sh/database": "workspace:*",
-    "@keeper.sh/log": "workspace:*"
+    "@keeper.sh/log": "workspace:*",
+    "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {
     "@keeper.sh/typescript-config": "workspace:*",

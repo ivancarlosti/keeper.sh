@@ -5,6 +5,8 @@ import type {
   SyncResult,
   RemoteEvent,
   ProviderConfig,
+  SyncOperation,
+  SlotOperations,
 } from "./types";
 import type { SyncStatus } from "@keeper.sh/data-schemas";
 import { generateEventUid, isKeeperEvent } from "./event-identity";
@@ -51,54 +53,51 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
       inSync: false,
     });
 
-    const { toAdd, toRemove } = this.diffEvents(localEvents, remoteEvents);
+    const operations = this.diffEvents(localEvents, remoteEvents);
+    const addCount = operations.filter((op) => op.type === "add").length;
+    const removeCount = operations.filter((op) => op.type === "remove").length;
 
     this.childLog.debug(
-      { userId, toAddCount: toAdd.length, toRemoveCount: toRemove.length },
+      { userId, toAddCount: addCount, toRemoveCount: removeCount },
       "diff complete",
     );
 
-    const inSync = toAdd.length === 0 && toRemove.length === 0;
-
-    if (inSync) {
+    if (operations.length === 0) {
       this.childLog.debug({ userId }, "destination in sync");
       await this.persistAndEmitFinalStatus(localEvents.length, remoteEvents.length);
       return { added: 0, removed: 0 };
     }
 
-    if (toAdd.length > 0) {
-      this.emitStatus({
-        status: "syncing",
-        stage: "pushing",
-        localEventCount: localEvents.length,
-        remoteEventCount: remoteEvents.length,
-        progress: { current: 0, total: toAdd.length },
-        inSync: false,
-      });
-      await this.pushEvents(toAdd);
-    }
+    this.emitStatus({
+      status: "syncing",
+      stage: "pushing",
+      localEventCount: localEvents.length,
+      remoteEventCount: remoteEvents.length,
+      progress: { current: 0, total: operations.length },
+      inSync: false,
+    });
 
-    if (toRemove.length > 0) {
-      this.emitStatus({
-        status: "syncing",
-        stage: "deleting",
-        localEventCount: localEvents.length,
-        remoteEventCount: remoteEvents.length,
-        progress: { current: 0, total: toRemove.length },
-        inSync: false,
-      });
-      await this.deleteEvents(toRemove);
-    }
+    await this.processOperations(operations);
 
-    const finalRemoteCount = remoteEvents.length + toAdd.length - toRemove.length;
+    const finalRemoteCount = remoteEvents.length + addCount - removeCount;
     await this.persistAndEmitFinalStatus(localEvents.length, finalRemoteCount);
 
     this.childLog.info(
-      { userId, added: toAdd.length, removed: toRemove.length },
+      { userId, added: addCount, removed: removeCount },
       "sync complete",
     );
 
-    return { added: toAdd.length, removed: toRemove.length };
+    return { added: addCount, removed: removeCount };
+  }
+
+  private async processOperations(operations: SyncOperation[]): Promise<void> {
+    for (const operation of operations) {
+      if (operation.type === "add") {
+        await this.pushEvents([operation.event]);
+      } else {
+        await this.deleteEvents([operation.uid]);
+      }
+    }
   }
 
   private emitStatus(status: Omit<SyncStatus, "provider">): void {
@@ -147,34 +146,74 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
   private diffEvents(
     localEvents: SyncableEvent[],
     remoteEvents: RemoteEvent[],
-  ): { toAdd: SyncableEvent[]; toRemove: string[] } {
-    const remoteUidSet = new Set<string>();
-    for (const event of remoteEvents) {
-      remoteUidSet.add(event.uid);
-    }
+  ): SyncOperation[] {
+    const timeKey = (start: Date, end: Date) =>
+      `${start.getTime()}:${end.getTime()}`;
 
-    const localUidToEvent = new Map<string, SyncableEvent>();
+    const localBySlot = new Map<string, SyncableEvent[]>();
     for (const event of localEvents) {
-      const uid = this.generateUid(event);
-      localUidToEvent.set(uid, event);
+      const key = timeKey(event.startTime, event.endTime);
+      const slotEvents = localBySlot.get(key) ?? [];
+      slotEvents.push(event);
+      localBySlot.set(key, slotEvents);
     }
 
-    const toAdd: SyncableEvent[] = [];
-    const toRemove: string[] = [];
+    const remoteBySlot = new Map<string, RemoteEvent[]>();
+    for (const event of remoteEvents) {
+      const key = timeKey(event.startTime, event.endTime);
+      const slotEvents = remoteBySlot.get(key) ?? [];
+      slotEvents.push(event);
+      remoteBySlot.set(key, slotEvents);
+    }
 
-    for (const [uid, event] of localUidToEvent) {
-      if (!remoteUidSet.has(uid)) {
-        toAdd.push(event);
+    const allSlots = new Set([...localBySlot.keys(), ...remoteBySlot.keys()]);
+    const slotOperations: SlotOperations[] = [];
+
+    for (const slot of allSlots) {
+      const localSlotEvents = localBySlot.get(slot) ?? [];
+      const remoteSlotEvents = remoteBySlot.get(slot) ?? [];
+      const operations: SyncOperation[] = [];
+
+      const startTime = localSlotEvents[0]?.startTime ?? remoteSlotEvents[0]?.startTime;
+      if (!startTime) continue;
+
+      const diff = localSlotEvents.length - remoteSlotEvents.length;
+
+      if (diff > 0) {
+        const remoteUids = new Set(remoteSlotEvents.map((event) => event.uid));
+        let added = 0;
+        for (const event of localSlotEvents) {
+          if (added >= diff) break;
+          if (!remoteUids.has(this.generateUid(event))) {
+            operations.push({ type: "add", event });
+            added++;
+          }
+        }
+      } else if (diff < 0) {
+        const surplus = -diff;
+        const localUids = new Set(
+          localSlotEvents.map((event) => this.generateUid(event)),
+        );
+        const unmatched = remoteSlotEvents.filter(
+          (event) => !localUids.has(event.uid),
+        );
+        const matched = remoteSlotEvents.filter((event) =>
+          localUids.has(event.uid),
+        );
+
+        const toRemoveFromSlot = [...unmatched, ...matched].slice(0, surplus);
+        for (const event of toRemoveFromSlot) {
+          operations.push({ type: "remove", uid: event.uid });
+        }
+      }
+
+      if (operations.length > 0) {
+        slotOperations.push({ startTime: startTime.getTime(), operations });
       }
     }
 
-    for (const uid of remoteUidSet) {
-      if (!localUidToEvent.has(uid)) {
-        toRemove.push(uid);
-      }
-    }
-
-    return { toAdd, toRemove };
+    slotOperations.sort((first, second) => first.startTime - second.startTime);
+    return slotOperations.flatMap((slot) => slot.operations);
   }
 
   protected generateUid(event: SyncableEvent): string {

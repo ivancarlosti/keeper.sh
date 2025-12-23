@@ -16,6 +16,8 @@
     "@keeper.sh/broadcast": "workspace:*",
     "@keeper.sh/data-schemas": "workspace:*",
     "@keeper.sh/database": "workspace:*",
+    "@keeper.sh/integration-google-calendar": "workspace:*",
+    "@keeper.sh/integrations": "workspace:*",
     "@keeper.sh/log": "workspace:*",
     "@keeper.sh/premium": "workspace:*",
     "@keeper.sh/pull-calendar": "workspace:*",

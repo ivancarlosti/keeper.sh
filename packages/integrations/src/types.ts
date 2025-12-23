@@ -6,6 +6,7 @@ export interface SyncableEvent {
   description?: string;
   sourceId: string;
   sourceName?: string;
+  sourceUrl: string;
 }
 
 export interface PushResult {
@@ -26,6 +27,17 @@ export interface SyncResult {
 
 export interface RemoteEvent {
   uid: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+export type SyncOperation =
+  | { type: "add"; event: SyncableEvent }
+  | { type: "remove"; uid: string };
+
+export interface SlotOperations {
+  startTime: number;
+  operations: SyncOperation[];
 }
 
 export interface ProviderConfig {

@@ -111,6 +111,7 @@ export const getUserEvents = async (userId: string): Promise<SyncableEvent[]> =>
       endTime: eventStatesTable.endTime,
       sourceId: eventStatesTable.sourceId,
       sourceName: remoteICalSourcesTable.name,
+      sourceUrl: remoteICalSourcesTable.url,
     })
     .from(eventStatesTable)
     .innerJoin(
@@ -125,12 +126,14 @@ export const getUserEvents = async (userId: string): Promise<SyncableEvent[]> =>
     )
     .orderBy(asc(eventStatesTable.startTime));
 
-  return results.map(({ id, startTime, endTime, sourceId, sourceName }) => ({
+  return results.map(({ id, startTime, endTime, sourceId, sourceName, sourceUrl }) => ({
     id,
     startTime,
     endTime,
     sourceId,
     sourceName,
-    summary: sourceName,
+    sourceUrl,
+    summary: sourceName ?? "Busy",
   }));
 };
+

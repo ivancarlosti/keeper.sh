@@ -9,6 +9,8 @@ import {
 import { pullRemoteCalendar } from "@keeper.sh/pull-calendar";
 import { canAddSource } from "@keeper.sh/premium";
 import { fetchAndSyncSource } from "@keeper.sh/sync-calendar";
+import { syncDestinationsForUser } from "@keeper.sh/integrations";
+import "@keeper.sh/integration-google-calendar";
 import { log } from "@keeper.sh/log";
 import {
   createWebsocketHandler,
@@ -215,6 +217,10 @@ const server = Bun.serve<BroadcastData>({
           if (!deleted) {
             return Response.json({ error: "Not found" }, { status: 404 });
           }
+
+          syncDestinationsForUser(userId).catch((error) => {
+            log.error(error, "failed to sync destinations after source deletion");
+          });
 
           return Response.json({ success: true });
         }),

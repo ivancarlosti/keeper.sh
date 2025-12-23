@@ -4,7 +4,7 @@ import type { SyncableEvent } from "./types";
 const SUFFIX = "@keeper.sh";
 
 const createEventHash = (event: SyncableEvent): string => {
-  const data = `${event.sourceId}:${event.startTime.getTime()}:${event.endTime.getTime()}`;
+  const data = `${event.sourceUrl}:${event.startTime.getTime()}:${event.endTime.getTime()}`;
   return createHash("sha256").update(data).digest("base64url").slice(0, 16);
 };
 

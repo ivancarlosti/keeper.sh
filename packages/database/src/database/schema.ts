@@ -71,3 +71,4 @@ export const syncStatusTable = pgTable(
     uniqueIndex("sync_status_user_provider_idx").on(table.userId, table.provider),
   ],
 );
+
