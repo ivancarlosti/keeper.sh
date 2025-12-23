@@ -5,7 +5,7 @@ import {
   type DeleteResult,
 } from "@keeper.sh/integrations";
 
-const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
+const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3/";
 
 interface GoogleEventResource {
   id?: string;
@@ -66,7 +66,10 @@ export class GoogleCalendarProvider extends CalendarProvider {
   private async createEvent(
     resource: GoogleEventResource,
   ): Promise<PushResult> {
-    const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(this.calendarId)}/events`;
+    const url = new URL(
+      `calendars/${encodeURIComponent(this.calendarId)}/events`,
+      GOOGLE_CALENDAR_API,
+    );
 
     const response = await fetch(url, {
       method: "POST",
@@ -90,7 +93,10 @@ export class GoogleCalendarProvider extends CalendarProvider {
     eventId: string,
     resource: GoogleEventResource,
   ): Promise<PushResult> {
-    const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(eventId)}`;
+    const url = new URL(
+      `calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(eventId)}`,
+      GOOGLE_CALENDAR_API,
+    );
 
     const response = await fetch(url, {
       method: "PUT",
@@ -118,7 +124,10 @@ export class GoogleCalendarProvider extends CalendarProvider {
         return { success: true };
       }
 
-      const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(existing.id)}`;
+      const url = new URL(
+        `calendars/${encodeURIComponent(this.calendarId)}/events/${encodeURIComponent(existing.id)}`,
+        GOOGLE_CALENDAR_API,
+      );
 
       const response = await fetch(url, {
         method: "DELETE",
@@ -145,7 +154,12 @@ export class GoogleCalendarProvider extends CalendarProvider {
   private async findEventByUid(
     uid: string,
   ): Promise<GoogleEventResource | null> {
-    const url = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(this.calendarId)}/events?iCalUID=${encodeURIComponent(uid)}`;
+    const url = new URL(
+      `calendars/${encodeURIComponent(this.calendarId)}/events`,
+      GOOGLE_CALENDAR_API,
+    );
+
+    url.searchParams.set("iCalUID", uid);
 
     const response = await fetch(url, {
       method: "GET",
