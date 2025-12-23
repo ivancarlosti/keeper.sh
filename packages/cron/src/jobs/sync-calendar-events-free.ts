@@ -1,6 +1,23 @@
 import type { CronOptions } from "cronbake";
 import { log } from "@keeper.sh/log";
-import { fetchAndSyncSource, getSourcesByPlan } from "../lib/sync-utils";
+import {
+  getGoogleAccountForUser,
+  syncGoogleAccount,
+} from "@keeper.sh/integration-google-calendar";
+import {
+  fetchAndSyncSource,
+  getSourcesByPlan,
+  type Source,
+} from "../lib/sync-utils";
+
+const syncUserSources = async (userId: string, sources: Source[]) => {
+  await Promise.allSettled(sources.map(fetchAndSyncSource));
+
+  const googleAccount = await getGoogleAccountForUser(userId);
+  if (googleAccount) {
+    await syncGoogleAccount(googleAccount);
+  }
+};
 
 export default {
   name: import.meta.file,
@@ -11,7 +28,17 @@ export default {
     const sources = await getSourcesByPlan("free");
     log.debug("syncing %s free sources", sources.length);
 
-    const syncs = sources.map((source) => fetchAndSyncSource(source));
-    await Promise.allSettled(syncs);
+    const sourcesByUser = new Map<string, Source[]>();
+    for (const source of sources) {
+      const userSources = sourcesByUser.get(source.userId) ?? [];
+      userSources.push(source);
+      sourcesByUser.set(source.userId, userSources);
+    }
+
+    const userSyncs = Array.from(sourcesByUser.entries()).map(
+      ([userId, userSources]) => syncUserSources(userId, userSources),
+    );
+
+    await Promise.allSettled(userSyncs);
   },
 } satisfies CronOptions;

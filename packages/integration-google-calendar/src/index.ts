@@ -1,6 +1,7 @@
 export { GoogleCalendarProvider } from "./provider";
 export {
   getGoogleAccountsByPlan,
+  getGoogleAccountForUser,
   refreshGoogleTokenIfNeeded,
   getUserEvents,
   diffSyncOutEvents,

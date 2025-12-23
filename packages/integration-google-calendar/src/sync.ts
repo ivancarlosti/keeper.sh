@@ -7,7 +7,7 @@ import {
 import { googleTokenResponseSchema, type GoogleEvent } from "@keeper.sh/data-schemas";
 import env from "@keeper.sh/env/auth";
 import { log } from "@keeper.sh/log";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Plan } from "@keeper.sh/premium";
 import { generateEventUid, type SyncableEvent } from "@keeper.sh/integrations";
 import { GoogleCalendarProvider } from "./provider";
@@ -69,6 +69,44 @@ export const getGoogleAccountsByPlan = async (
   }
 
   return accounts;
+};
+
+export const getGoogleAccountForUser = async (
+  userId: string,
+): Promise<GoogleAccount | null> => {
+  const results = await database
+    .select({
+      userId: account.userId,
+      accountId: account.accountId,
+      accessToken: account.accessToken,
+      refreshToken: account.refreshToken,
+      accessTokenExpiresAt: account.accessTokenExpiresAt,
+    })
+    .from(account)
+    .where(and(eq(account.providerId, "google"), eq(account.userId, userId)))
+    .limit(1);
+
+  const result = results[0];
+  if (!result) {
+    return null;
+  }
+
+  const { accessToken, refreshToken, accessTokenExpiresAt } = result;
+  if (
+    accessToken === null ||
+    refreshToken === null ||
+    accessTokenExpiresAt === null
+  ) {
+    return null;
+  }
+
+  return {
+    userId: result.userId,
+    accountId: result.accountId,
+    accessToken,
+    refreshToken,
+    accessTokenExpiresAt,
+  };
 };
 
 export const refreshGoogleTokenIfNeeded = async (
