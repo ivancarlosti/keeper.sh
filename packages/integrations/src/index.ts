@@ -1,9 +1,5 @@
 export { CalendarProvider } from "./provider";
-export {
-  generateEventUid,
-  parseEventUid,
-  isKeeperEvent,
-} from "./event-identity";
+export { generateEventUid, isKeeperEvent } from "./event-identity";
 export {
   registerDestinationProvider,
   syncDestinationsForUser,

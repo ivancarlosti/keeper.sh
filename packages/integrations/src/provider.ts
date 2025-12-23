@@ -16,7 +16,9 @@ import { emit } from "@keeper.sh/broadcast";
 import { database } from "@keeper.sh/database";
 import { syncStatusTable } from "@keeper.sh/database/schema";
 
-export abstract class CalendarProvider<TConfig extends ProviderConfig = ProviderConfig> {
+export abstract class CalendarProvider<
+  TConfig extends ProviderConfig = ProviderConfig,
+> {
   abstract readonly name: string;
   abstract readonly id: string;
 
@@ -28,11 +30,18 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
   abstract deleteEvents(eventIds: string[]): Promise<DeleteResult[]>;
   abstract listRemoteEvents(): Promise<RemoteEvent[]>;
 
-  async sync(localEvents: SyncableEvent[], context: SyncContext): Promise<SyncResult> {
+  async sync(
+    localEvents: SyncableEvent[],
+    context: SyncContext,
+  ): Promise<SyncResult> {
     const { userId } = this.config;
 
     this.childLog.debug(
-      { userId, localCount: localEvents.length, generation: context.generation },
+      {
+        userId,
+        localCount: localEvents.length,
+        generation: context.generation,
+      },
       "starting sync",
     );
 
@@ -44,14 +53,16 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
       inSync: false,
     });
 
-    if (!(await isSyncCurrent(context))) {
+    const isLatestSync = await isSyncCurrent(context);
+
+    if (!isLatestSync) {
       this.childLog.debug({ userId }, "sync superseded before fetch");
       return { added: 0, removed: 0 };
     }
 
     const remoteEvents = await this.listRemoteEvents();
 
-    if (!(await isSyncCurrent(context))) {
+    if (!isLatestSync) {
       this.childLog.debug({ userId }, "sync superseded after fetch");
       return { added: 0, removed: 0 };
     }
@@ -75,7 +86,10 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
 
     if (operations.length === 0) {
       this.childLog.debug({ userId }, "destination in sync");
-      await this.persistAndEmitFinalStatus(localEvents.length, remoteEvents.length);
+      await this.persistAndEmitFinalStatus(
+        localEvents.length,
+        remoteEvents.length,
+      );
       return { added: 0, removed: 0 };
     }
 
@@ -90,7 +104,8 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
       return processed;
     }
 
-    const finalRemoteCount = remoteEvents.length + processed.added - processed.removed;
+    const finalRemoteCount =
+      remoteEvents.length + processed.added - processed.removed;
     await this.persistAndEmitFinalStatus(localEvents.length, finalRemoteCount);
 
     this.childLog.info(
@@ -128,7 +143,10 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
         localEventCount: params.localEventCount,
         remoteEventCount: params.remoteEventCount,
         progress: { current, total },
-        lastOperation: { type: operation.type, eventTime: eventTime.toISOString() },
+        lastOperation: {
+          type: operation.type,
+          eventTime: eventTime.toISOString(),
+        },
         inSync: false,
       });
 
@@ -227,36 +245,24 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
       const remoteSlotEvents = remoteBySlot.get(slot) ?? [];
       const operations: SyncOperation[] = [];
 
-      const startTime = localSlotEvents[0]?.startTime ?? remoteSlotEvents[0]?.startTime;
+      const startTime =
+        localSlotEvents[0]?.startTime ?? remoteSlotEvents[0]?.startTime;
       if (!startTime) continue;
 
       const diff = localSlotEvents.length - remoteSlotEvents.length;
 
       if (diff > 0) {
-        const remoteUids = new Set(remoteSlotEvents.map((event) => event.uid));
-        let added = 0;
-        for (const event of localSlotEvents) {
-          if (added >= diff) break;
-          if (!remoteUids.has(this.generateUid(event))) {
-            operations.push({ type: "add", event });
-            added++;
-          }
+        for (const event of localSlotEvents.slice(0, diff)) {
+          operations.push({ type: "add", event });
         }
       } else if (diff < 0) {
         const surplus = -diff;
-        const localUids = new Set(
-          localSlotEvents.map((event) => this.generateUid(event)),
-        );
-        const unmatched = remoteSlotEvents.filter(
-          (event) => !localUids.has(event.uid),
-        );
-        const matched = remoteSlotEvents.filter((event) =>
-          localUids.has(event.uid),
-        );
-
-        const toRemoveFromSlot = [...unmatched, ...matched].slice(0, surplus);
-        for (const event of toRemoveFromSlot) {
-          operations.push({ type: "remove", uid: event.uid, startTime: event.startTime });
+        for (const event of remoteSlotEvents.slice(0, surplus)) {
+          operations.push({
+            type: "remove",
+            uid: event.uid,
+            startTime: event.startTime,
+          });
         }
       }
 
@@ -269,8 +275,8 @@ export abstract class CalendarProvider<TConfig extends ProviderConfig = Provider
     return slotOperations.flatMap((slot) => slot.operations);
   }
 
-  protected generateUid(event: SyncableEvent): string {
-    return generateEventUid(this.config.userId, event);
+  protected generateUid(): string {
+    return generateEventUid();
   }
 
   protected isKeeperEvent(uid: string): boolean {

@@ -245,21 +245,11 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
   }
 
   private async pushEvent(event: SyncableEvent): Promise<PushResult> {
-    const uid = this.generateUid(event);
+    const uid = this.generateUid();
     const resource = this.toGoogleEvent(event, uid);
 
     try {
-      const existing = await this.findEventByUid(uid);
-
-      if (existing?.id) {
-        this.childLog.debug(
-          { uid, eventId: existing.id },
-          "updating existing event",
-        );
-        return this.updateEvent(existing.id, resource);
-      }
-
-      this.childLog.debug({ uid }, "creating new event");
+      this.childLog.debug({ uid }, "creating event");
       return this.createEvent(resource);
     } catch (error) {
       this.childLog.error({ uid, error }, "failed to push event");
@@ -298,40 +288,6 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
     const body = await response.json();
     const { id: remoteId } = googleEventSchema.assert(body);
     this.childLog.debug({ remoteId }, "event created");
-    return { success: true, remoteId };
-  }
-
-  private async updateEvent(
-    eventId: string,
-    resource: GoogleEvent,
-  ): Promise<PushResult> {
-    const url = new URL(
-      `calendars/${encodeURIComponent(this.config.calendarId)}/events/${encodeURIComponent(eventId)}`,
-      GOOGLE_CALENDAR_API,
-    );
-
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: this.headers,
-      body: JSON.stringify(resource),
-    });
-
-    if (!response.ok) {
-      const body = await response.json();
-      const { error } = googleApiErrorSchema.assert(body);
-      this.childLog.error(
-        { status: response.status, eventId, error },
-        "update event failed",
-      );
-      return {
-        success: false,
-        error: error?.message ?? response.statusText,
-      };
-    }
-
-    const body = await response.json();
-    const { id: remoteId } = googleEventSchema.assert(body);
-    this.childLog.debug({ remoteId }, "event updated");
     return { success: true, remoteId };
   }
 
