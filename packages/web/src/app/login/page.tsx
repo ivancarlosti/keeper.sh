@@ -1,9 +1,9 @@
 "use client";
 
 import type { FC } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Fingerprint } from "lucide-react";
 import { Header } from "@/components/header";
 import { useAuth } from "@/components/auth-provider";
 import {
@@ -16,15 +16,14 @@ import {
   AuthFormFooter,
   AuthFormDivider,
   AuthSocialButton,
-  AuthSocialButtons,
 } from "@/components/auth-form";
 import { GoogleIcon } from "@/components/icons/google";
 import { useFormSubmit } from "@/hooks/use-form-submit";
+import { authClient } from "@/lib/auth-client";
 import {
   signIn,
   signInWithEmail,
   signInWithGoogle,
-  signInWithPasskey,
   isUsernameOnlyMode,
 } from "@/lib/auth";
 
@@ -82,6 +81,16 @@ const EmailLoginForm: FC = () => {
   const { refresh } = useAuth();
   const { isSubmitting, error, submit } = useFormSubmit();
 
+  useEffect(() => {
+    if (
+      !PublicKeyCredential.isConditionalMediationAvailable ||
+      !PublicKeyCredential.isConditionalMediationAvailable()
+    ) {
+      return;
+    }
+    void authClient.signIn.passkey({ autoFill: true });
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -101,35 +110,18 @@ const EmailLoginForm: FC = () => {
     });
   };
 
-  const handlePasskeySignIn = async () => {
-    await submit(async () => {
-      await signInWithPasskey();
-      await refresh();
-      router.push("/dashboard");
-    });
-  };
-
   return (
     <AuthForm onSubmit={handleSubmit}>
       <AuthFormTitle>Login</AuthFormTitle>
       <AuthFormError message={error} />
 
-      <AuthSocialButtons>
-        <AuthSocialButton
-          onClick={handleGoogleSignIn}
-          isLoading={isSubmitting}
-          icon={<GoogleIcon className="size-4" />}
-        >
-          Continue with Google
-        </AuthSocialButton>
-        <AuthSocialButton
-          onClick={handlePasskeySignIn}
-          isLoading={isSubmitting}
-          icon={<Fingerprint className="size-4" />}
-        >
-          Continue with Passkey
-        </AuthSocialButton>
-      </AuthSocialButtons>
+      <AuthSocialButton
+        onClick={handleGoogleSignIn}
+        isLoading={isSubmitting}
+        icon={<GoogleIcon className="size-4" />}
+      >
+        Continue with Google
+      </AuthSocialButton>
 
       <AuthFormDivider />
 
@@ -138,14 +130,14 @@ const EmailLoginForm: FC = () => {
         label="Email"
         type="email"
         required
-        autoComplete="email"
+        autoComplete="email webauthn"
       />
       <AuthFormField
         name="password"
         label="Password"
         type="password"
         required
-        autoComplete="current-password"
+        autoComplete="current-password webauthn"
         labelAction={
           <Link
             href="/forgot-password"

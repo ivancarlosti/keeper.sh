@@ -55,7 +55,7 @@ if (!env.USERNAME_ONLY_MODE && env.PASSKEY_RP_ID && env.PASSKEY_ORIGIN) {
   plugins.push(
     passkey({
       rpID: env.PASSKEY_RP_ID,
-      rpName: env.PASSKEY_RP_NAME ?? "Keeper",
+      rpName: env.PASSKEY_RP_NAME,
       origin: env.PASSKEY_ORIGIN,
     }),
   );
