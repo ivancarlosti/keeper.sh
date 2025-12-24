@@ -2,6 +2,7 @@ import { Webhooks } from "@polar-sh/nextjs";
 import { log } from "@keeper.sh/log";
 import { database } from "@keeper.sh/database";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
+import { NextRequest, NextResponse } from "next/server";
 
 const POLAR_WEBHOOK_SECRET = process.env.POLAR_WEBHOOK_SECRET;
 
@@ -30,7 +31,9 @@ async function upsertSubscription(
   log.trace("upsertSubscription for user '%s' complete", userId);
 }
 
-export const POST = POLAR_WEBHOOK_SECRET
+const fallback = () => new NextResponse(null, { status: 501 });
+
+const handler = POLAR_WEBHOOK_SECRET
   ? Webhooks({
       webhookSecret: POLAR_WEBHOOK_SECRET,
       onPayload: async (payload) => {
@@ -45,7 +48,11 @@ export const POST = POLAR_WEBHOOK_SECRET
         }
 
         await upsertSubscription(userId, "pro", payload.data.id);
-        log.info("subscription '%s' created for user '%s'", payload.data.id, userId);
+        log.info(
+          "subscription '%s' created for user '%s'",
+          payload.data.id,
+          userId,
+        );
         log.trace("polar webhook 'subscription.created' complete");
       },
       onSubscriptionUpdated: async (payload) => {
@@ -57,8 +64,17 @@ export const POST = POLAR_WEBHOOK_SECRET
         }
 
         const isActive = payload.data.status === "active";
-        await upsertSubscription(userId, isActive ? "pro" : "free", payload.data.id);
-        log.info("subscription '%s' updated for user '%s' (active: %s)", payload.data.id, userId, isActive);
+        await upsertSubscription(
+          userId,
+          isActive ? "pro" : "free",
+          payload.data.id,
+        );
+        log.info(
+          "subscription '%s' updated for user '%s' (active: %s)",
+          payload.data.id,
+          userId,
+          isActive,
+        );
         log.trace("polar webhook 'subscription.updated' complete");
       },
       onSubscriptionCanceled: async (payload) => {
@@ -70,8 +86,14 @@ export const POST = POLAR_WEBHOOK_SECRET
         }
 
         await upsertSubscription(userId, "free", payload.data.id);
-        log.info("subscription '%s' canceled for user '%s'", payload.data.id, userId);
+        log.info(
+          "subscription '%s' canceled for user '%s'",
+          payload.data.id,
+          userId,
+        );
         log.trace("polar webhook 'subscription.canceled' complete");
       },
     })
   : undefined;
+
+export const POST = POLAR_WEBHOOK_SECRET ? handler : fallback;

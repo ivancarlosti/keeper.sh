@@ -1,7 +1,7 @@
 "use client";
 
 import { Receipt } from "lucide-react";
-import { Separator } from "@base-ui-components/react/separator";
+import { Separator } from "@base-ui/react/separator";
 import { EmptyState } from "@/components/empty-state";
 import { SubscriptionPlans } from "@/components/subscription-plans";
 import { PageContent } from "@/components/page-content";
@@ -92,7 +92,9 @@ function BillingHistory() {
                   <FieldValue>{formatDate(order.createdAt)}</FieldValue>
                 </td>
                 <td className="px-3 py-2">
-                  <FieldValue>{order.product?.name ?? order.description}</FieldValue>
+                  <FieldValue>
+                    {order.product?.name ?? order.description}
+                  </FieldValue>
                 </td>
                 <td className="px-3 py-2">
                   <FieldValue className="tabular-nums">

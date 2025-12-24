@@ -360,7 +360,7 @@ export const DestinationsSection = () => {
                 render={<Menu.Trigger />}
                 className={button({ variant: "primary", size: "xs" })}
               >
-                Add Destination
+                New Destination
               </Button>
               <Menu.Portal>
                 <Menu.Positioner sideOffset={4}>
@@ -387,7 +387,7 @@ export const DestinationsSection = () => {
               className="flex items-center gap-1"
             >
               <Plus size={12} />
-              Add Destination
+              New Destination
             </GhostButton>
             <Menu.Portal>
               <Menu.Positioner sideOffset={4} align="end">

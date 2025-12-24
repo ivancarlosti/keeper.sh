@@ -1,8 +1,21 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  transpilePackages: ["@keeper.sh/auth"],
+export default {
+  transpilePackages: [
+    "@keeper.sh/auth",
+    "@keeper.sh/database",
+    "@keeper.sh/env",
+    "@keeper.sh/log",
+    "@keeper.sh/data-schemas",
+    "@keeper.sh/premium",
+    "@keeper.sh/broadcast-client",
+  ],
   cacheComponents: true,
-};
-
-export default nextConfig;
+  serverExternalPackages: [
+    "pino",
+    "pino-pretty",
+    "better-auth",
+    "@polar-sh/better-auth",
+    "@polar-sh/sdk",
+  ],
+} satisfies NextConfig;

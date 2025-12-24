@@ -1,18 +1,14 @@
 "use client";
 
 import type { FC } from "react";
-import { useEffect, use } from "react";
+import { useEffect } from "react";
 import { Calendar } from "@/components/calendar";
 import { useEvents } from "@/hooks/use-events";
 import { useIntersectionObserver } from "@/hooks/use-intersection-observer";
 
 const DAYS_PER_PAGE = 7;
 
-const neverResolves = new Promise<never>(() => {});
-
 export const CalendarFeed: FC = () => {
-  if (typeof window === "undefined") use(neverResolves);
-
   const { events, isLoadingMore, loadMore, size } = useEvents();
   const { ref, isIntersecting } = useIntersectionObserver();
 
