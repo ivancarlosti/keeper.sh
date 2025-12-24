@@ -11,8 +11,6 @@
     "push": "drizzle-kit push",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
-    "seed": "bun scripts/seed.ts | pino-pretty",
-    "clear": "bun scripts/clear.ts | pino-pretty",
     "types": "tsc --noEmit"
   },
   "devDependencies": {
@@ -26,7 +24,6 @@
   "dependencies": {
     "@keeper.sh/env": "workspace:*",
     "@keeper.sh/log": "workspace:*",
-    "@keeper.sh/synthetic-data": "workspace:*",
     "drizzle-orm": "0.45.1",
     "pg": "8.16.3"
   }

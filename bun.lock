@@ -131,7 +131,6 @@
       "dependencies": {
         "@keeper.sh/env": "workspace:*",
         "@keeper.sh/log": "workspace:*",
-        "@keeper.sh/synthetic-data": "workspace:*",
         "drizzle-orm": "0.45.1",
         "pg": "8.16.3",
       },
@@ -253,17 +252,6 @@
     },
     "packages/sync-events": {
       "name": "@keeper.sh/sync-events",
-      "dependencies": {
-        "ts-ics": "2.4.0",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/synthetic-data": {
-      "name": "@keeper.sh/synthetic-data",
       "dependencies": {
         "ts-ics": "2.4.0",
       },
@@ -503,8 +491,6 @@
     "@keeper.sh/sync-calendar": ["@keeper.sh/sync-calendar@workspace:packages/sync-calendar"],
 
     "@keeper.sh/sync-events": ["@keeper.sh/sync-events@workspace:packages/sync-events"],
-
-    "@keeper.sh/synthetic-data": ["@keeper.sh/synthetic-data@workspace:packages/synthetic-data"],
 
     "@keeper.sh/typescript-config": ["@keeper.sh/typescript-config@workspace:packages/typescript-config"],
 
