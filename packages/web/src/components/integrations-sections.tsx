@@ -9,6 +9,7 @@ import { Toast } from "@/components/toast-provider";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormDialog } from "@/components/form-dialog";
 import { FormField } from "@/components/form-field";
+import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
 import { useSources, type CalendarSource } from "@/hooks/use-sources";
 import { useSubscription } from "@/hooks/use-subscription";
@@ -16,15 +17,7 @@ import { useLinkedAccounts } from "@/hooks/use-linked-accounts";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { useIcalToken } from "@/hooks/use-ical-token";
 import { authClient } from "@/lib/auth-client";
-import {
-  button,
-  input,
-  integrationCard,
-  integrationIcon,
-  integrationInfo,
-  integrationName,
-  integrationDescription,
-} from "@/styles";
+import { button, input } from "@/styles";
 import { TextBody, TextMuted, BannerText } from "@/components/typography";
 
 interface SourceItemProps {
@@ -45,10 +38,10 @@ const SourceItem = ({ source, onRemove }: SourceItemProps) => {
 
   return (
     <>
-      <div className={integrationCard()}>
-        <div className={integrationInfo()}>
-          <div className={integrationName()}>{source.name}</div>
-          <div className={integrationDescription()}>{source.url}</div>
+      <div className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg transition-colors hover:border-gray-300">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900">{source.name}</div>
+          <div className="text-sm text-gray-500 overflow-hidden truncate">{source.url}</div>
         </div>
         <Button
           onClick={() => setIsConfirmOpen(true)}
@@ -232,7 +225,7 @@ export const CalendarSourcesSection = () => {
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <Section>
       <SectionHeader
         title="Calendar Sources"
         description="Add iCal links to import events from other calendars"
@@ -252,7 +245,7 @@ export const CalendarSourcesSection = () => {
           />
         )}
       </div>
-    </section>
+    </Section>
   );
 };
 
@@ -442,8 +435,8 @@ const DestinationItem = ({
 
   return (
     <>
-      <div className={integrationCard()}>
-        <div className={integrationIcon()}>
+      <div className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg transition-colors hover:border-gray-300">
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-white border border-gray-200">
           {destination.icon && (
             <Image
               src={destination.icon}
@@ -453,9 +446,9 @@ const DestinationItem = ({
             />
           )}
         </div>
-        <div className={integrationInfo()}>
-          <div className={integrationName()}>{destination.name}</div>
-          <div className={integrationDescription()}>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900">{destination.name}</div>
+          <div className="text-sm text-gray-500 overflow-hidden truncate">
             {destination.description}
           </div>
           {isConnected && syncStatus && <SyncStatusDisplay {...syncStatus} />}
@@ -547,7 +540,7 @@ export const DestinationsSection = () => {
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <Section>
       <SectionHeader
         title="Destinations"
         description="Push your aggregated events to other calendar apps"
@@ -578,7 +571,7 @@ export const DestinationsSection = () => {
           );
         })}
       </div>
-    </section>
+    </Section>
   );
 };
 
@@ -599,7 +592,7 @@ export const ICalLinkSection = () => {
   };
 
   return (
-    <section className="flex flex-col gap-3">
+    <Section>
       <SectionHeader
         title="Your iCal Link"
         description="Subscribe to this link to view your aggregated events"
@@ -619,6 +612,6 @@ export const ICalLinkSection = () => {
           Copy
         </Button>
       </div>
-    </section>
+    </Section>
   );
 };

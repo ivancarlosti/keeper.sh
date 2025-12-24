@@ -4,11 +4,6 @@ import {
 } from "@keeper.sh/data-schemas";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
 import { Toggle } from "@base-ui/react/toggle";
-import {
-  billingToggleGroup,
-  billingToggle,
-  billingSavingsBadge,
-} from "@/styles";
 
 export type { BillingPeriod };
 
@@ -29,14 +24,22 @@ export function BillingPeriodToggle({
           onChange(billingPeriodSchema.assert(values[0]));
         }
       }}
-      className={billingToggleGroup()}
+      className="inline-grid grid-cols-2 rounded-lg border border-gray-200 p-1 bg-gray-50"
     >
-      <Toggle value="monthly" className={billingToggle()}>
+      <Toggle
+        value="monthly"
+        className="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 hover:text-gray-900 data-[pressed]:bg-white data-[pressed]:text-gray-900 data-[pressed]:shadow-sm cursor-pointer"
+      >
         Monthly
       </Toggle>
-      <Toggle value="yearly" className={billingToggle()}>
+      <Toggle
+        value="yearly"
+        className="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-600 hover:text-gray-900 data-[pressed]:bg-white data-[pressed]:text-gray-900 data-[pressed]:shadow-sm cursor-pointer"
+      >
         Yearly
-        <span className={billingSavingsBadge()}>-50%</span>
+        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+          -50%
+        </span>
       </Toggle>
     </ToggleGroup>
   );

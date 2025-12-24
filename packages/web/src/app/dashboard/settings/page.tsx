@@ -11,15 +11,11 @@ import {
   ChangePasswordDialog,
   DeleteAccountDialog,
 } from "@/components/settings-dialogs";
+import { PageContent } from "@/components/page-content";
+import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
 import { updateUser, changePassword, deleteAccount, signOut } from "@/lib/auth";
-import {
-  button,
-  settingsSection,
-  settingsCard,
-  settingsLabel,
-  settingsValue,
-} from "@/styles";
+import { button } from "@/styles";
 import { DangerLabel, DangerText } from "@/components/typography";
 
 export default function SettingsPage() {
@@ -52,18 +48,18 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-8">
-      <section className={settingsSection()}>
+    <PageContent>
+      <Section>
         <SectionHeader
           title="Profile"
           description="Manage your personal information"
         />
 
-        <div className={settingsCard()}>
+        <div className="flex flex-col gap-4 p-4 border border-gray-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <div className={settingsLabel()}>Display Name</div>
-              <div className={settingsValue()}>{user?.name || "Not set"}</div>
+              <div className="text-sm font-medium text-gray-500">Display Name</div>
+              <div className="text-sm text-gray-900">{user?.name || "Not set"}</div>
             </div>
             <Button
               onClick={() => setIsEditingName(true)}
@@ -74,23 +70,23 @@ export default function SettingsPage() {
           </div>
           <Separator className="bg-gray-200 h-px" />
           <div>
-            <div className={settingsLabel()}>Username</div>
-            <div className={settingsValue()}>{user?.username}</div>
+            <div className="text-sm font-medium text-gray-500">Username</div>
+            <div className="text-sm text-gray-900">{user?.username}</div>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className={settingsSection()}>
+      <Section>
         <SectionHeader
           title="Security"
           description="Manage your password and account security"
         />
 
-        <div className={settingsCard()}>
+        <div className="flex flex-col gap-4 p-4 border border-gray-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <div className={settingsLabel()}>Password</div>
-              <div className={settingsValue()}>••••••••</div>
+              <div className="text-sm font-medium text-gray-500">Password</div>
+              <div className="text-sm text-gray-900">••••••••</div>
             </div>
             <Button
               onClick={() => setIsChangingPassword(true)}
@@ -100,9 +96,9 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </Section>
 
-      <section className={settingsSection()}>
+      <Section>
         <SectionHeader
           title="Danger Zone"
           description="Irreversible actions for your account"
@@ -124,7 +120,7 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </Section>
 
       <EditNameDialog
         open={isEditingName}
@@ -144,6 +140,6 @@ export default function SettingsPage() {
         onOpenChange={setIsDeletingAccount}
         onDelete={handleDeleteAccount}
       />
-    </div>
+    </PageContent>
   );
 }

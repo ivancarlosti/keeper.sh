@@ -2,26 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { sidebarLink } from "@/styles";
+import {
+  CalendarDays,
+  Puzzle,
+  CreditCard,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+import { tv } from "tailwind-variants";
 
-const sidebarItems = [
-  { href: "/dashboard", label: "Calendars" },
-  { href: "/dashboard/integrations", label: "Integrations" },
-  { href: "/dashboard/billing", label: "Billing" },
-  { href: "/dashboard/settings", label: "Settings" },
-] as const;
+const sidebarLink = tv({
+  base: "flex items-center text-sm gap-1 py-1 px-1.5 pr-8 rounded-sm tracking-tight",
+  variants: {
+    active: {
+      true: "bg-gray-100 text-gray-900",
+      false: "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
+    },
+  },
+  defaultVariants: {
+    active: false,
+  },
+});
+
+const sidebarItems: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/dashboard", label: "Agenda", icon: CalendarDays },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Puzzle },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+];
 
 export function DashboardSidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-1 shrink-0 sticky top-2 self-start">
+    <nav className="flex flex-col gap-0.5 shrink-0 sticky top-2 self-start">
       {sidebarItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
           className={sidebarLink({ active: pathname === item.href })}
         >
+          <item.icon size={15} />
           {item.label}
         </Link>
       ))}

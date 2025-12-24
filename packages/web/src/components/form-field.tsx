@@ -1,4 +1,4 @@
-import { formField, label, input } from "@/styles";
+import { input } from "@/styles";
 
 interface FormFieldProps {
   id: string;
@@ -32,8 +32,8 @@ export function FormField({
   readOnly,
 }: FormFieldProps) {
   return (
-    <div className={formField()}>
-      <label htmlFor={id} className={label()}>
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="block text-sm font-medium mb-1.5 text-gray-700">
         {labelText}
       </label>
       <input

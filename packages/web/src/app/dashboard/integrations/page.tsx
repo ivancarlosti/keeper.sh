@@ -3,13 +3,14 @@ import {
   DestinationsSection,
   ICalLinkSection,
 } from "@/components/integrations-sections";
+import { PageContent } from "@/components/page-content";
 
 export default function IntegrationsPage() {
   return (
-    <div className="flex-1 flex flex-col gap-8">
+    <PageContent>
       <CalendarSourcesSection />
       <DestinationsSection />
       <ICalLinkSection />
-    </div>
+    </PageContent>
   );
 }

@@ -1,17 +1,64 @@
 import { Check, X } from "lucide-react";
 import { Button } from "@base-ui/react/button";
+import { tv } from "tailwind-variants";
 import type { PlanConfig } from "@/config/plans";
-import {
-  button,
-  pricingCard,
-  pricingBadge,
-  pricingPrice,
-  pricingPeriod,
-  pricingFeature,
-  pricingFeatureIcon,
-  pricingFeatureText,
-} from "@/styles";
+import { button } from "@/styles";
 import { SectionTitle, TextBody } from "@/components/typography";
+
+const pricingCard = tv({
+  base: "flex flex-col p-6 border rounded-xl transition-colors",
+  variants: {
+    current: {
+      true: "border-gray-900",
+      false: "",
+    },
+    featured: {
+      true: "border-gray-900 bg-gray-50 shadow-sm",
+      false: "border-gray-200 bg-white",
+    },
+    muted: {
+      true: "opacity-75",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    current: false,
+    featured: false,
+    muted: false,
+  },
+});
+
+const pricingBadge = tv({
+  base: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+  variants: {
+    variant: {
+      current: "bg-gray-900 text-white",
+      popular: "bg-blue-100 text-blue-800",
+    },
+    skeleton: {
+      true: "opacity-0",
+    },
+  },
+});
+
+const pricingFeatureIcon = tv({
+  base: "w-4 h-4 shrink-0",
+  variants: {
+    included: {
+      true: "text-green-600",
+      false: "text-gray-300",
+    },
+  },
+});
+
+const pricingFeatureText = tv({
+  variants: {
+    included: {
+      true: "",
+      false: "text-gray-400",
+    },
+  },
+});
 
 type Plan = Omit<PlanConfig, "monthlyPrice" | "yearlyPrice" | "monthlyProductId" | "yearlyProductId"> & {
   price: number;
@@ -150,15 +197,15 @@ export const PlanCard = ({
       </div>
 
       <div className="mb-4">
-        <span className={pricingPrice()}>${plan.price}</span>
-        <span className={pricingPeriod()}>{plan.period}</span>
+        <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
+        <span className="text-sm text-gray-500 font-normal">{plan.period}</span>
       </div>
 
       <TextBody className="mb-6">{plan.description}</TextBody>
 
       <ul className="flex flex-col gap-3 mb-6 flex-1">
         {plan.features.map((feature) => (
-          <li key={feature.name} className={pricingFeature()}>
+          <li key={feature.name} className="flex items-center gap-2 text-sm text-gray-600">
             <FeatureIcon included={feature.included} />
             <span className={pricingFeatureText({ included: feature.included })}>
               {feature.name}

@@ -2,7 +2,6 @@
 
 import NextLink from "next/link";
 import { NavigationMenu } from "@base-ui/react/navigation-menu";
-import { navLink } from "@/styles";
 
 const navItems = [
   { href: "/#features", label: "Features" },
@@ -33,7 +32,7 @@ export function MarketingNav() {
                   <NextLink href={item.href} />
                 )
               }
-              className={navLink()}
+              className="flex items-center px-3 py-2 rounded-md text-sm font-medium no-underline transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             >
               {item.label}
             </NavigationMenu.Link>

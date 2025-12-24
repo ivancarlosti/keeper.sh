@@ -1,11 +1,11 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Onest } from "next/font/google";
 import clsx from "clsx";
 import { AuthProvider } from "@/components/auth-provider";
 
-const geist = Geist({
+const font = Onest({
   subsets: ["latin"],
 });
 
@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={clsx(geist.className, "antialiased")}>
+      <body className={clsx(font.className, "antialiased")}>
         <AuthProvider>
           <div className="isolate min-h-dvh flex flex-col">{children}</div>
         </AuthProvider>

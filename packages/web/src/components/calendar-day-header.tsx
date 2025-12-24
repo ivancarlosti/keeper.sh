@@ -1,6 +1,16 @@
+import { tv } from "tailwind-variants";
 import { isToday, formatWeekday } from "@/utils/calendar";
-import { calendarDayNumber } from "@/styles";
 import { TextMeta } from "@/components/typography";
+
+const calendarDayNumber = tv({
+  base: "text-lg font-semibold",
+  variants: {
+    today: {
+      true: "bg-gray-900 text-white w-8 h-8 rounded-full flex items-center justify-center",
+      false: "text-gray-900",
+    },
+  },
+});
 
 interface CalendarDayHeaderProps {
   date: Date;

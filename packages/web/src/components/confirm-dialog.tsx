@@ -4,15 +4,7 @@ import { useState, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { Button } from "@base-ui/react/button";
 import { Dialog } from "@base-ui/react/dialog";
-import {
-  button,
-  input,
-  dialogBackdrop,
-  dialogPopup,
-  dialogTitle,
-  dialogDescription,
-  dialogActions,
-} from "@/styles";
+import { button, input, dialogPopup } from "@/styles";
 
 const CopyablePhrase = ({ phrase }: { phrase: string }) => {
   const [copied, setCopied] = useState(false);
@@ -73,10 +65,12 @@ export function ConfirmDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className={dialogBackdrop()} />
+        <Dialog.Backdrop className="fixed inset-0 bg-black/40 z-50" />
         <Dialog.Popup className={dialogPopup({ size: "sm" })}>
-          <Dialog.Title className={dialogTitle()}>{title}</Dialog.Title>
-          <Dialog.Description className={dialogDescription()}>
+          <Dialog.Title className="text-lg font-semibold text-gray-900 mb-1">
+            {title}
+          </Dialog.Title>
+          <Dialog.Description className="text-sm text-gray-500 mb-4">
             {description}
           </Dialog.Description>
           {requirePhrase && (
@@ -93,7 +87,7 @@ export function ConfirmDialog({
               />
             </div>
           )}
-          <div className={dialogActions()}>
+          <div className="flex gap-2 justify-end mt-2">
             <Dialog.Close className={button({ variant: "secondary" })}>
               Cancel
             </Dialog.Close>

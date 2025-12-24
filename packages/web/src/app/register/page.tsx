@@ -15,7 +15,6 @@ import {
   AuthFormFooter,
 } from "@/components/auth-form";
 import { signUp } from "@/lib/auth";
-import { link } from "@/styles";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -81,7 +80,10 @@ export default function RegisterPage() {
           </AuthFormSubmit>
           <AuthFormFooter>
             Already have an account?{" "}
-            <Link href="/login" className={link()}>
+            <Link
+              href="/login"
+              className="text-gray-900 font-medium no-underline hover:underline"
+            >
               Login
             </Link>
           </AuthFormFooter>

@@ -2,6 +2,8 @@
 
 import { Separator } from "@base-ui-components/react/separator";
 import { SubscriptionPlans } from "@/components/subscription-plans";
+import { PageContent } from "@/components/page-content";
+import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useOrders } from "@/hooks/use-orders";
@@ -27,7 +29,7 @@ function BillingHistory() {
 
   if (isLoading) {
     return (
-      <section className="flex flex-col gap-3">
+      <Section>
         <SectionHeader
           title="Billing History"
           description="View your past invoices and payment history"
@@ -38,13 +40,13 @@ function BillingHistory() {
             <div className="h-4 bg-gray-200 rounded w-1/2" />
           </div>
         </div>
-      </section>
+      </Section>
     );
   }
 
   if (!orders || orders.length === 0) {
     return (
-      <section className="flex flex-col gap-3">
+      <Section>
         <SectionHeader
           title="Billing History"
           description="View your past invoices and payment history"
@@ -52,12 +54,12 @@ function BillingHistory() {
         <TextBody className="py-4 border border-gray-200 rounded-lg text-center">
           No billing history yet
         </TextBody>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section className="flex flex-col gap-3">
+    <Section>
       <SectionHeader
         title="Billing History"
         description="View your past invoices and payment history"
@@ -100,7 +102,7 @@ function BillingHistory() {
           </tbody>
         </table>
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -108,7 +110,7 @@ export default function BillingPage() {
   const { data: subscription, isLoading, mutate } = useSubscription();
 
   return (
-    <div className="flex-1 flex flex-col gap-8">
+    <PageContent>
       <SubscriptionPlans
         currentPlan={subscription?.plan}
         currentInterval={subscription?.interval}
@@ -117,6 +119,6 @@ export default function BillingPage() {
       />
       <Separator className="bg-gray-200 h-px" />
       <BillingHistory />
-    </div>
+    </PageContent>
   );
 }

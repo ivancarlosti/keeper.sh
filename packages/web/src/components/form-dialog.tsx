@@ -2,15 +2,7 @@
 
 import { Button } from "@base-ui/react/button";
 import { Dialog } from "@base-ui/react/dialog";
-import {
-  button,
-  dialogBackdrop,
-  dialogPopup,
-  dialogTitle,
-  dialogDescription,
-  dialogActions,
-  formError,
-} from "@/styles";
+import { button, dialogPopup } from "@/styles";
 
 interface FormDialogProps {
   open: boolean;
@@ -47,16 +39,18 @@ export function FormDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       {trigger && <Dialog.Trigger render={trigger} />}
       <Dialog.Portal>
-        <Dialog.Backdrop className={dialogBackdrop()} />
+        <Dialog.Backdrop className="fixed inset-0 bg-black/40 z-50" />
         <Dialog.Popup className={dialogPopup({ size })}>
-          <Dialog.Title className={dialogTitle()}>{title}</Dialog.Title>
-          <Dialog.Description className={dialogDescription()}>
+          <Dialog.Title className="text-lg font-semibold text-gray-900 mb-1">
+            {title}
+          </Dialog.Title>
+          <Dialog.Description className="text-sm text-gray-500 mb-4">
             {description}
           </Dialog.Description>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             {children}
-            {error && <p className={formError()}>{error}</p>}
-            <div className={dialogActions()}>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="flex gap-2 justify-end mt-2">
               <Dialog.Close className={button({ variant: "secondary" })}>
                 Cancel
               </Dialog.Close>

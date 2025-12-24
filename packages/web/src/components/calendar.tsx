@@ -2,6 +2,7 @@
 
 import type { RefCallback } from "react";
 import type { CalendarEvent } from "@/hooks/use-events";
+import { tv } from "tailwind-variants";
 import {
   getDaysFromDate,
   isSameDay,
@@ -9,25 +10,29 @@ import {
   formatDayHeading,
   getColorFromUrl,
 } from "@/utils/calendar";
-import {
-  agendaContainer,
-  agendaDaySection,
-  agendaDayHeading,
-  agendaEventList,
-  agendaEventItem,
-  agendaEventTime,
-  agendaEventDot,
-  agendaEventSource,
-  agendaEmptyDay,
-} from "@/styles";
 import { TextBody } from "@/components/typography";
+
+const agendaEventDot = tv({
+  base: "w-1.5 h-1.5 rounded-full shrink-0",
+  variants: {
+    color: {
+      blue: "bg-blue-500",
+      green: "bg-green-500",
+      purple: "bg-purple-500",
+      orange: "bg-orange-500",
+    },
+  },
+  defaultVariants: {
+    color: "blue",
+  },
+});
 
 const SkeletonBar = ({ className = "" }: { className?: string }) => (
   <div className={`bg-gray-200 rounded animate-pulse ${className}`} />
 );
 
 const SkeletonEventItem = () => (
-  <li className={agendaEventItem()}>
+  <li className="flex items-center gap-2 py-1 text-sm text-gray-500">
     <SkeletonBar className="w-1.5 h-1.5 rounded-full shrink-0" />
     <SkeletonBar className="h-4 w-64" />
   </li>
@@ -36,11 +41,11 @@ const SkeletonEventItem = () => (
 const SkeletonDaySection = ({ index }: { index: number }) => {
   const eventCount = (index % 3) + 1;
   return (
-    <section className={agendaDaySection()}>
+    <section className="flex flex-col gap-2">
       <div className="border-b border-gray-200 pb-2">
         <SkeletonBar className="h-6 w-48" />
       </div>
-      <ul className={agendaEventList()}>
+      <ul className="flex flex-col list-none p-0 m-0">
         {Array.from({ length: eventCount }).map((_, i) => (
           <SkeletonEventItem key={i} />
         ))}
@@ -50,7 +55,7 @@ const SkeletonDaySection = ({ index }: { index: number }) => {
 };
 
 export const CalendarSkeleton = ({ days = 7 }: { days?: number }) => (
-  <div className={agendaContainer()}>
+  <div className="flex flex-col gap-6 max-w-2xl">
     {Array.from({ length: days }).map((_, i) => (
       <SkeletonDaySection key={i} index={i} />
     ))}
@@ -67,13 +72,13 @@ export interface CalendarProps {
 
 const DayEventList = ({ events }: { events: CalendarEvent[] }) => {
   if (events.length === 0) {
-    return <p className={agendaEmptyDay()}>No events</p>;
+    return <p className="text-sm text-gray-400 italic py-2">No events</p>;
   }
 
   return (
-    <ul className={agendaEventList()}>
+    <ul className="flex flex-col list-none p-0 m-0">
       {events.map((event) => (
-        <li key={event.id} className={agendaEventItem()}>
+        <li key={event.id} className="flex items-center gap-2 py-1 text-sm text-gray-500">
           <span
             className={agendaEventDot({
               color: getColorFromUrl(event.sourceUrl),
@@ -81,18 +86,18 @@ const DayEventList = ({ events }: { events: CalendarEvent[] }) => {
           />
           <span>
             Busy from{" "}
-            <span className={agendaEventTime()}>
+            <span className="tabular-nums text-gray-900 font-medium">
               {formatTime(new Date(event.startTime))}
             </span>{" "}
             to{" "}
-            <span className={agendaEventTime()}>
+            <span className="tabular-nums text-gray-900 font-medium">
               {formatTime(new Date(event.endTime))}
             </span>
             {event.sourceName && (
               <>
                 {" "}
                 according to an event from{" "}
-                <span className={agendaEventSource()}>{event.sourceName}</span>
+                <span className="text-gray-900 font-medium">{event.sourceName}</span>
               </>
             )}
           </span>
@@ -130,16 +135,18 @@ export const Calendar = ({
   };
 
   return (
-    <div className={agendaContainer()}>
+    <div className="flex flex-col gap-6 max-w-2xl">
       {days.map((date, index) => {
         const isLast = index === days.length - 1;
         return (
           <section
             key={date.toISOString()}
             ref={isLast ? lastSectionRef : undefined}
-            className={agendaDaySection()}
+            className="flex flex-col gap-2"
           >
-            <h2 className={agendaDayHeading()}>{formatDayHeading(date)}</h2>
+            <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              {formatDayHeading(date)}
+            </h2>
             <DayEventList events={getEventsForDay(date)} />
           </section>
         );
