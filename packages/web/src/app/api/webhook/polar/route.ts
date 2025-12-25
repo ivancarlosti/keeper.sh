@@ -6,11 +6,11 @@ import { NextResponse } from "next/server";
 
 const POLAR_WEBHOOK_SECRET = process.env.POLAR_WEBHOOK_SECRET;
 
-async function upsertSubscription(
+const upsertSubscription = async (
   userId: string,
   plan: "free" | "pro",
   polarSubscriptionId: string,
-) {
+) => {
   log.trace("upsertSubscription for user '%s' started", userId);
   await database
     .insert(userSubscriptionsTable)
@@ -29,7 +29,7 @@ async function upsertSubscription(
       },
     });
   log.trace("upsertSubscription for user '%s' complete", userId);
-}
+};
 
 const fallback = () => new NextResponse(null, { status: 501 });
 
