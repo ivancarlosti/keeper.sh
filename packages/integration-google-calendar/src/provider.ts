@@ -18,7 +18,7 @@ import { database } from "@keeper.sh/database";
 import { calendarDestinationsTable } from "@keeper.sh/database/schema";
 import { eq } from "drizzle-orm";
 import { refreshAccessToken } from "@keeper.sh/oauth-google";
-import { getGoogleAccountForUser, getUserEvents } from "./sync";
+import { getGoogleAccountsForUser, getUserEvents } from "./sync";
 
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3/";
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -45,20 +45,32 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
   }
 
   static async syncForUser(userId: string, context: SyncContext): Promise<SyncResult | null> {
-    const googleAccount = await getGoogleAccountForUser(userId);
-    if (!googleAccount) return null;
-
-    const provider = new GoogleCalendarProvider({
-      userId: googleAccount.userId,
-      accountId: googleAccount.accountId,
-      accessToken: googleAccount.accessToken,
-      refreshToken: googleAccount.refreshToken,
-      accessTokenExpiresAt: googleAccount.accessTokenExpiresAt,
-      calendarId: "primary",
-    });
+    const googleAccounts = await getGoogleAccountsForUser(userId);
+    if (googleAccounts.length === 0) return null;
 
     const localEvents = await getUserEvents(userId);
-    return provider.sync(localEvents, context);
+
+    const results = await Promise.all(
+      googleAccounts.map((account) => {
+        const provider = new GoogleCalendarProvider({
+          userId: account.userId,
+          accountId: account.accountId,
+          accessToken: account.accessToken,
+          refreshToken: account.refreshToken,
+          accessTokenExpiresAt: account.accessTokenExpiresAt,
+          calendarId: "primary",
+        });
+        return provider.sync(localEvents, context);
+      }),
+    );
+
+    return results.reduce<SyncResult>(
+      (combined, result) => ({
+        added: combined.added + result.added,
+        removed: combined.removed + result.removed,
+      }),
+      { added: 0, removed: 0 },
+    );
   }
 
   private get headers(): Record<string, string> {

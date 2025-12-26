@@ -6,7 +6,7 @@ registerDestinationProvider(GoogleCalendarProvider);
 export { GoogleCalendarProvider };
 export {
   getGoogleAccountsByPlan,
-  getGoogleAccountForUser,
+  getGoogleAccountsForUser,
   getUserEvents,
   type GoogleAccount,
 } from "./sync";

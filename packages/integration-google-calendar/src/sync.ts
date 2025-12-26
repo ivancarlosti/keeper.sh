@@ -58,9 +58,9 @@ export const getGoogleAccountsByPlan = async (
   return accounts;
 };
 
-export const getGoogleAccountForUser = async (
+export const getGoogleAccountsForUser = async (
   userId: string,
-): Promise<GoogleAccount | null> => {
+): Promise<GoogleAccount[]> => {
   const results = await database
     .select({
       userId: calendarDestinationsTable.userId,
@@ -75,21 +75,15 @@ export const getGoogleAccountForUser = async (
         eq(calendarDestinationsTable.provider, "google"),
         eq(calendarDestinationsTable.userId, userId),
       ),
-    )
-    .limit(1);
+    );
 
-  const result = results[0];
-  if (!result) {
-    return null;
-  }
-
-  return {
+  return results.map((result) => ({
     userId: result.userId,
     accountId: result.accountId,
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     accessTokenExpiresAt: result.accessTokenExpiresAt,
-  };
+  }));
 };
 
 export const getUserEvents = async (userId: string): Promise<SyncableEvent[]> => {
