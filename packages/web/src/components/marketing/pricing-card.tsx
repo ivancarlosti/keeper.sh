@@ -42,14 +42,14 @@ export const PricingCard: FC<PricingCardProps> = ({
   onBillingChange,
 }) => {
   const isFree = plan.monthlyPrice === 0;
-  const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+  const price = isYearly ? plan.yearlyPrice / 12 : plan.monthlyPrice;
 
   return (
     <div className={card({ featured: plan.popular })}>
       <PricingCardHeader name={plan.name} popular={plan.popular} />
       <PricingCardPrice
         price={price}
-        period={isYearly ? "/year" : "/month"}
+        period={isYearly ? "/month billed yearly" : "/month"}
         showPeriod={!isFree}
       />
       <BillingToggle

@@ -149,7 +149,8 @@ export const CalendarSourcesSection = () => {
 
   const isAtLimit =
     subscription?.plan === "free" &&
-    (sources?.length ?? 0) >= FREE_SOURCE_LIMIT;
+    sources &&
+    sources.length >= FREE_SOURCE_LIMIT;
 
   const handleAddSource = async (name: string, url: string) => {
     const response = await fetch("/api/ics", {
