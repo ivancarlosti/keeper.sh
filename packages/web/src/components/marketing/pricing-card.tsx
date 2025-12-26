@@ -49,7 +49,7 @@ export const PricingCard: FC<PricingCardProps> = ({
       <PricingCardHeader name={plan.name} popular={plan.popular} />
       <PricingCardPrice
         price={price}
-        period={isYearly ? "/month billed yearly" : "/month"}
+        period={isYearly ? " per month billed yearly" : " per month"}
         showPeriod={!isFree}
       />
       <BillingToggle

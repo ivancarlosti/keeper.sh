@@ -39,7 +39,10 @@ export const SubscriptionPlans: FC<SubscriptionPlansProps> = ({
   const [billingPeriodOverride, setBillingPeriodOverride] =
     useState<BillingPeriod | null>(null);
 
-  const billingPeriod = deriveBillingPeriod(billingPeriodOverride, currentInterval);
+  const billingPeriod = deriveBillingPeriod(
+    billingPeriodOverride,
+    currentInterval,
+  );
 
   const handleUpgrade = async (productId: string) => {
     setIsCheckoutLoading(true);
@@ -78,11 +81,16 @@ export const SubscriptionPlans: FC<SubscriptionPlansProps> = ({
         description="Manage your subscription and billing details"
       />
 
-      <BillingPeriodToggle value={billingPeriod} onChange={setBillingPeriodOverride} />
+      <BillingPeriodToggle
+        value={billingPeriod}
+        onChange={setBillingPeriodOverride}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
         {plans.map((plan) => {
-          const productId = isYearly ? plan.yearlyProductId : plan.monthlyProductId;
+          const productId = isYearly
+            ? plan.yearlyProductId
+            : plan.monthlyProductId;
 
           return (
             <PlanCard
@@ -90,7 +98,7 @@ export const SubscriptionPlans: FC<SubscriptionPlansProps> = ({
               plan={{
                 ...plan,
                 price: isYearly ? plan.yearlyPrice : plan.monthlyPrice,
-                period: isYearly ? "/year" : "/month",
+                period: isYearly ? "per year" : " per month",
               }}
               isCurrent={currentPlan === plan.id}
               isCurrentInterval={isCurrentInterval}
