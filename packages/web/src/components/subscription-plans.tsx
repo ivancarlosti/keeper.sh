@@ -92,13 +92,16 @@ export const SubscriptionPlans: FC<SubscriptionPlansProps> = ({
             ? plan.yearlyProductId
             : plan.monthlyProductId;
 
+          const periodText = isYearly ? " per year" : " per month";
+          const showPeriodText = plan.monthlyPrice > 0;
+
           return (
             <PlanCard
               key={plan.id}
               plan={{
                 ...plan,
                 price: isYearly ? plan.yearlyPrice : plan.monthlyPrice,
-                period: isYearly ? "per year" : " per month",
+                period: showPeriodText ? periodText : "",
               }}
               isCurrent={currentPlan === plan.id}
               isCurrentInterval={isCurrentInterval}
