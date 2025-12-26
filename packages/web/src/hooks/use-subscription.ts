@@ -9,7 +9,7 @@ interface SubscriptionState {
 async function fetchCustomerState(): Promise<SubscriptionState> {
   const { data } = await authClient.customer.state();
 
-  const activeSubscription = data?.activeSubscriptions?.[0];
+  const [activeSubscription] = data?.activeSubscriptions ?? [];
 
   if (!activeSubscription) {
     return { plan: "free", interval: null };

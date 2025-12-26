@@ -24,6 +24,24 @@ export const saveCalendarDestination = async (
   refreshToken: string,
   expiresAt: Date,
 ): Promise<void> => {
+  const [existingDestination] = await database
+    .select({
+      id: calendarDestinationsTable.id,
+      userId: calendarDestinationsTable.userId,
+    })
+    .from(calendarDestinationsTable)
+    .where(
+      and(
+        eq(calendarDestinationsTable.provider, provider),
+        eq(calendarDestinationsTable.accountId, accountId),
+      ),
+    )
+    .limit(1);
+
+  if (existingDestination && existingDestination.userId !== userId) {
+    throw new Error("This account is already linked to another user");
+  }
+
   await database
     .insert(calendarDestinationsTable)
     .values({
@@ -37,7 +55,6 @@ export const saveCalendarDestination = async (
     })
     .onConflictDoUpdate({
       target: [
-        calendarDestinationsTable.userId,
         calendarDestinationsTable.provider,
         calendarDestinationsTable.accountId,
       ],

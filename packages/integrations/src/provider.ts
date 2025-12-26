@@ -242,10 +242,13 @@ export abstract class CalendarProvider<
     for (const slot of allSlots) {
       const localSlotEvents = localBySlot.get(slot) ?? [];
       const remoteSlotEvents = remoteBySlot.get(slot) ?? [];
+
+      const [localSlotEvent] = localSlotEvents;
+      const [remoteSlotEvent] = remoteSlotEvents;
+
       const operations: SyncOperation[] = [];
 
-      const startTime =
-        localSlotEvents[0]?.startTime ?? remoteSlotEvents[0]?.startTime;
+      const startTime = localSlotEvent?.startTime ?? remoteSlotEvent?.startTime;
       if (!startTime) continue;
 
       const diff = localSlotEvents.length - remoteSlotEvents.length;

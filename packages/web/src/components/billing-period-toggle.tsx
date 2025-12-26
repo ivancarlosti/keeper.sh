@@ -19,10 +19,9 @@ export function BillingPeriodToggle({
   return (
     <ToggleGroup
       value={[value]}
-      onValueChange={(values) => {
-        if (values.length > 0) {
-          onChange(billingPeriodSchema.assert(values[0]));
-        }
+      onValueChange={([value]) => {
+        if (!value) return;
+        onChange(billingPeriodSchema.assert(value));
       }}
       className="inline-grid grid-cols-2 rounded-md border border-border p-0.5 bg-surface-subtle"
     >

@@ -16,7 +16,9 @@ async function reconcileUserSubscription(userId: string) {
 
     const hasActiveSubscription = subscriptions.result.items.length > 0;
     const plan = hasActiveSubscription ? "pro" : "free";
-    const polarSubscriptionId = subscriptions.result.items[0]?.id ?? null;
+
+    const [polarSubscription] = subscriptions.result.items;
+    const polarSubscriptionId = polarSubscription?.id ?? null;
 
     await database
       .insert(userSubscriptionsTable)

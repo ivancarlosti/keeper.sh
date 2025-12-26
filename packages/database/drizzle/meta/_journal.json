@@ -155,6 +155,13 @@
       "when": 1766731735655,
       "tag": "0021_icy_white_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1766733236361,
+      "tag": "0022_lazy_avengers",
+      "breakpoints": true
     }
   ]
 }

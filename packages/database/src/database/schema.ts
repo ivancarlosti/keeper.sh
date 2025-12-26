@@ -71,10 +71,9 @@ export const calendarDestinationsTable = pgTable(
     updatedAt: timestamp().notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("calendar_destinations_user_provider_account_idx").on(
-      table.userId,
+    uniqueIndex("calendar_destinations_provider_account_idx").on(
       table.provider,
-      table.accountId
+      table.accountId,
     ),
   ],
 );

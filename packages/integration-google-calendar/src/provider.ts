@@ -44,7 +44,10 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
     this.currentAccessToken = config.accessToken;
   }
 
-  static async syncForUser(userId: string, context: SyncContext): Promise<SyncResult | null> {
+  static async syncForUser(
+    userId: string,
+    context: SyncContext,
+  ): Promise<SyncResult | null> {
     const googleAccounts = await getGoogleAccountsForUser(userId);
     if (googleAccounts.length === 0) return null;
 
@@ -332,7 +335,8 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
 
     const body = await response.json();
     const { items } = googleEventListSchema.assert(body);
-    return items?.[0] ?? null;
+    const [item] = items ?? [];
+    return item ?? null;
   }
 
   private parseEventTime(
