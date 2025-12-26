@@ -2,7 +2,7 @@ import type { FC } from "react";
 
 export const HeroSection: FC = () => (
   <section className="flex flex-col gap-2">
-    <h1 className="text-4xl font-semibold tracking-tighter leading-tight">
+    <h1 className="text-4xl font-semibold tracking-tighter leading-tight text-foreground">
       Simple, open-source <span className="text-nowrap">calendar syncing</span>
     </h1>
     <p className="text-foreground-secondary leading-relaxed max-w-[42ch]">

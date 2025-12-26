@@ -18,8 +18,9 @@ const forward: RequestHandler = (request) => {
   const url = new URL(originalPathname, env.API_URL);
 
   return fetch(url.toString(), {
-    headers: request.headers,
-    body: request.body,
+    method: request.method,
+    ...(request.headers && { headers: request.headers }),
+    ...(request.body && { body: request.body }),
   });
 };
 
