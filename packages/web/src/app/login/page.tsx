@@ -83,24 +83,28 @@ const EmailLoginForm: FC = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+      return;
+    }
+
     if (
       !PublicKeyCredential.isConditionalMediationAvailable ||
       !PublicKeyCredential.isConditionalMediationAvailable()
     ) {
       return;
     }
-    void authClient.signIn.passkey({ autoFill: true }).then(async ({ error }) => {
-      if (!error) {
-        await refresh();
-      }
-    });
-  }, [refresh]);
 
-  useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
-    }
-  }, [user, router]);
+    const controller = new AbortController();
+
+    void authClient.signIn
+      .passkey({ autoFill: true, fetchOptions: { signal: controller.signal } })
+      .then(async ({ error }) => {
+        if (!error) await refresh();
+      });
+
+    return () => controller.abort();
+  }, [user, refresh, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
