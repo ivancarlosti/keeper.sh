@@ -27,7 +27,7 @@ export async function syncDestinationsForUser(
     for (const result of results) {
       if (result.status === "rejected" && isCurrent) {
         log.error(
-          { error: result.reason },
+          { err: result.reason },
           "destination sync failed for user '%s'",
           userId,
         );
