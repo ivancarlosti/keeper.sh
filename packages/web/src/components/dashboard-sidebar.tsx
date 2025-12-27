@@ -25,19 +25,39 @@ const sidebarLink = tv({
   },
 });
 
-const sidebarItems: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/dashboard", label: "Agenda", icon: CalendarDays },
-  { href: "/dashboard/integrations", label: "Integrations", icon: Puzzle },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-];
+interface SidebarItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  commercialOnly?: boolean;
+}
+
+function isCommercialMode(): boolean {
+  return process.env.NEXT_PUBLIC_COMMERCIAL_MODE === "true";
+}
+
+function getVisibleSidebarItems(): SidebarItem[] {
+  const allItems: SidebarItem[] = [
+    { href: "/dashboard", label: "Agenda", icon: CalendarDays },
+    { href: "/dashboard/integrations", label: "Integrations", icon: Puzzle },
+    { href: "/dashboard/billing", label: "Billing", icon: CreditCard, commercialOnly: true },
+    { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  ];
+
+  if (isCommercialMode()) {
+    return allItems;
+  }
+
+  return allItems.filter((item) => !item.commercialOnly);
+}
 
 export const DashboardSidebar: FC = () => {
   const pathname = usePathname();
+  const visibleItems = getVisibleSidebarItems();
 
   return (
     <nav className="flex flex-col gap-0.5 shrink-0 sticky top-2 self-start">
-      {sidebarItems.map((item) => (
+      {visibleItems.map((item) => (
         <Link
           key={item.href}
           href={item.href}
