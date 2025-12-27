@@ -8,9 +8,10 @@ const entrypoints = Array.from([
   ...ENTRY_POINT_GLOB.scanSync(),
 ]);
 
-build({
+await build({
   entrypoints,
   outdir: "./dist",
   root: "src",
   target: "bun",
+  splitting: true,
 });
