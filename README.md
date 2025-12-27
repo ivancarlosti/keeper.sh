@@ -149,9 +149,9 @@ MICROSOFT_CLIENT_ID=
 MICROSOFT_CLIENT_SECRET=
 ```
 
-### 3. Create Compose File
+### Create `compose.yaml`
 
-Create a `compose.yaml`:
+Adjacent to the `.env` file you've created, create your `compose.yaml` which will define all the services required to run Keeper.
 
 ```yaml
 services:
@@ -236,18 +236,10 @@ volumes:
   redis-data:
 ```
 
-### 4. Start Keeper
+### Start Keeper
+
+Once this is done, Keeper will be available at `http://localhost:3000` or the custom domain you've set. You can pair this configuration with a reverse-proxy. I personally use, prefer and recommend [Caddy](https://caddyserver.com/) as it has a great configuration system and automatically manages certificates for you.
 
 ```bash
 docker compose up -d
-```
-
-Keeper will be available at `http://localhost:3000`.
-
-### Building from Source
-
-```bash
-docker build -f packages/api/Dockerfile -t keeper-api .
-docker build -f packages/cron/Dockerfile -t keeper-cron .
-docker build -f packages/web/Dockerfile -t keeper-web .
 ```
