@@ -160,8 +160,17 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const tenYearsOut = new Date(today);
+    tenYearsOut.setFullYear(tenYearsOut.getFullYear() + 10);
+
+    const calendarUrl = await this.client.resolveCalendarUrl(this.config.calendarUrl);
+
     const objects = await this.client.fetchCalendarObjects({
-      calendarUrl: this.config.calendarUrl,
+      calendarUrl,
+      timeRange: {
+        start: today.toISOString(),
+        end: tenYearsOut.toISOString(),
+      },
     });
 
     this.childLog.debug(
@@ -170,33 +179,53 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
     );
 
     const remoteEvents: RemoteEvent[] = [];
+    let noData = 0;
+    let parseFailed = 0;
+    let notKeeper = 0;
+    let pastEvents = 0;
 
     for (const { data, url } of objects) {
       if (!data) {
-        this.childLog.trace({ url }, "object has no data");
+        noData++;
         continue;
       }
 
       const parsed = parseICalToRemoteEvent(data);
 
       if (!parsed) {
-        this.childLog.trace({ url }, "failed to parse object");
+        parseFailed++;
         continue;
       }
 
       if (!this.isKeeperEvent(parsed.uid)) {
-        this.childLog.trace({ uid: parsed.uid }, "not a keeper event");
+        notKeeper++;
         continue;
       }
 
-      if (parsed.endTime < today || parsed.startTime > options.until) {
+      // Only filter out past events - include ALL future keeper events
+      // to properly detect and clean up duplicates
+      if (parsed.endTime < today) {
+        pastEvents++;
         continue;
       }
 
       remoteEvents.push(parsed);
     }
 
-    this.childLog.debug({ count: remoteEvents.length }, "listed remote events");
+    this.childLog.info(
+      { noData, parseFailed, notKeeper, pastEvents },
+      "remote event filtering breakdown",
+    );
+
+    this.childLog.info(
+      {
+        provider: this.name,
+        objectCount: objects.length,
+        keeperEventCount: remoteEvents.length,
+        calendarUrl: this.config.calendarUrl,
+      },
+      "listed remote events",
+    );
     return remoteEvents;
   }
 }

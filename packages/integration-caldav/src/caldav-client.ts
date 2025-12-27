@@ -63,6 +63,17 @@ export class CalDAVClient {
     }));
   }
 
+  async resolveCalendarUrl(storedUrl: string): Promise<string> {
+    const calendars = await this.discoverCalendars();
+    const storedPath = new URL(storedUrl).pathname;
+
+    const matchingCalendar = calendars.find(
+      (calendar) => new URL(calendar.url).pathname === storedPath,
+    );
+
+    return matchingCalendar?.url ?? storedUrl;
+  }
+
   async createCalendarObject(params: {
     calendarUrl: string;
     filename: string;
@@ -117,6 +128,7 @@ export class CalDAVClient {
     const objects = await client.fetchCalendarObjects({
       calendar: { url: params.calendarUrl },
       timeRange,
+      expand: true,
     });
 
     childLog.debug(
