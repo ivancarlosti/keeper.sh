@@ -1,9 +1,5 @@
+import env from "@keeper.sh/env/next/backend";
 import { NextRequest } from "next/server";
-
-const API_URL = process.env.API_URL;
-if (!API_URL) {
-  throw new Error("API_URL is not set");
-}
 
 export async function GET(
   _request: NextRequest,
@@ -11,7 +7,11 @@ export async function GET(
 ) {
   const { identifier } = await params;
 
-  const url = new URL(`/cal/${identifier}`, API_URL);
+  if (env.API_URL) {
+    throw Error("API_URL must be set");
+  }
+
+  const url = new URL(`/cal/${identifier}`, env.API_URL);
   const response = await fetch(url);
 
   if (!response.ok) {

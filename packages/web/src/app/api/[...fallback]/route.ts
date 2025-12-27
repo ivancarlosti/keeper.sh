@@ -15,6 +15,11 @@ type RequestHandler = (request: NextRequest) => Promise<Response>;
  */
 const forward: RequestHandler = (request) => {
   const { pathname, search } = new URL(request.url);
+
+  if (!env.API_URL) {
+    throw Error("API_URL must be set");
+  }
+
   const url = new URL(pathname, env.API_URL);
   url.search = search;
 
