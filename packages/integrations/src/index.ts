@@ -1,5 +1,6 @@
 export { CalendarProvider } from "./provider";
 export { generateEventUid, isKeeperEvent } from "./event-identity";
+export { RateLimiter } from "./rate-limiter";
 export {
   syncDestinationsForUser,
   type DestinationProvider,

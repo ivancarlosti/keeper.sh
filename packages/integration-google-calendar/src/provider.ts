@@ -1,5 +1,6 @@
 import {
   CalendarProvider,
+  RateLimiter,
   type SyncableEvent,
   type PushResult,
   type DeleteResult,
@@ -26,11 +27,6 @@ import { getGoogleAccountsForUser, getUserEvents } from "./sync";
 
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3/";
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-const RATE_LIMIT_DELAY_MS = 60_000;
-const MAX_REQUESTS_PER_MINUTE = 600;
-const REQUESTS_PER_SECOND = Math.floor(MAX_REQUESTS_PER_MINUTE / 60);
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const isRateLimitError = (error: unknown): boolean => {
   if (!(error instanceof Error)) return false;
@@ -44,10 +40,12 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
   readonly id = "google";
 
   private currentAccessToken: string;
+  private rateLimiter: RateLimiter;
 
   constructor(config: GoogleCalendarConfig) {
     super(config);
     this.currentAccessToken = config.accessToken;
+    this.rateLimiter = new RateLimiter(10);
   }
 
   static async syncForUser(
@@ -134,17 +132,17 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
       "pushing events",
     );
 
-    const results: PushResult[] = [];
-
-    for (const event of events) {
-      const result = await this.pushEvent(event);
-      results.push(result);
-
-      if (!result.success && isRateLimitError(new Error(result.error))) {
-        this.childLog.warn("rate limit hit, waiting before continuing");
-        await delay(RATE_LIMIT_DELAY_MS);
-      }
-    }
+    const results = await Promise.all(
+      events.map((event) =>
+        this.rateLimiter.execute(async (): Promise<PushResult> => {
+          const result = await this.pushEvent(event);
+          if (!result.success && isRateLimitError(new Error(result.error))) {
+            this.rateLimiter.reportRateLimit();
+          }
+          return result;
+        }),
+      ),
+    );
 
     const succeeded = results.filter(({ success }) => success).length;
     this.childLog.info(
@@ -161,17 +159,17 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
       "deleting events",
     );
 
-    const results: DeleteResult[] = [];
-
-    for (const eventId of eventIds) {
-      const result = await this.deleteEvent(eventId);
-      results.push(result);
-
-      if (!result.success && isRateLimitError(new Error(result.error))) {
-        this.childLog.warn("rate limit hit, waiting before continuing");
-        await delay(RATE_LIMIT_DELAY_MS);
-      }
-    }
+    const results = await Promise.all(
+      eventIds.map((eventId) =>
+        this.rateLimiter.execute(async (): Promise<DeleteResult> => {
+          const result = await this.deleteEvent(eventId);
+          if (!result.success && isRateLimitError(new Error(result.error))) {
+            this.rateLimiter.reportRateLimit();
+          }
+          return result;
+        }),
+      ),
+    );
 
     const succeeded = results.filter(({ success }) => success).length;
     this.childLog.info(

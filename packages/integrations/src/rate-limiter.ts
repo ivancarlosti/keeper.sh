@@ -15,7 +15,7 @@ export class RateLimiter {
   private readonly maxBackoffMs = 60000;
   private readonly backoffMultiplier = 2;
 
-  constructor(concurrency = 10) {
+  constructor(concurrency = 5) {
     this.concurrency = concurrency;
     this.backoffMs = this.initialBackoffMs;
   }

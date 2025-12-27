@@ -1,5 +1,6 @@
 import {
   CalendarProvider,
+  RateLimiter,
   type SyncableEvent,
   type PushResult,
   type DeleteResult,
@@ -28,6 +29,7 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
   readonly id: string;
 
   private client: CalDAVClient;
+  private rateLimiter: RateLimiter;
 
   constructor(
     config: CalDAVConfig,
@@ -44,6 +46,7 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
         password,
       },
     });
+    this.rateLimiter = new RateLimiter(5);
   }
 
   static async syncForUser(
@@ -92,49 +95,52 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
   }
 
   async pushEvents(events: SyncableEvent[]): Promise<PushResult[]> {
-    const results: PushResult[] = [];
+    const results = await Promise.all(
+      events.map((event) =>
+        this.rateLimiter.execute(async (): Promise<PushResult> => {
+          try {
+            const uid = this.generateUid();
+            const iCalString = eventToICalString(event, uid);
 
-    for (const event of events) {
-      try {
-        const uid = this.generateUid();
-        const iCalString = eventToICalString(event, uid);
+            await this.client.createCalendarObject({
+              calendarUrl: this.config.calendarUrl,
+              filename: `${uid}.ics`,
+              iCalString,
+            });
 
-        await this.client.createCalendarObject({
-          calendarUrl: this.config.calendarUrl,
-          filename: `${uid}.ics`,
-          iCalString,
-        });
-
-        results.push({ success: true, remoteId: uid });
-      } catch (error) {
-        this.childLog.error({ error }, "failed to push event");
-        results.push({ success: false, error: "Failed to push event" });
-      }
-    }
+            return { success: true, remoteId: uid };
+          } catch (error) {
+            this.childLog.error({ error }, "failed to push event");
+            return { success: false, error: "Failed to push event" };
+          }
+        }),
+      ),
+    );
 
     return results;
   }
 
   async deleteEvents(eventIds: string[]): Promise<DeleteResult[]> {
-    const results: DeleteResult[] = [];
-
-    for (const uid of eventIds) {
-      try {
-        await this.client.deleteCalendarObject({
-          calendarUrl: this.config.calendarUrl,
-          filename: `${uid}.ics`,
-        });
-        results.push({ success: true });
-      } catch (error) {
-        const is404 = error instanceof Error && error.message.includes("404");
-        if (is404) {
-          results.push({ success: true });
-        } else {
-          this.childLog.error({ error, uid }, "failed to delete event");
-          results.push({ success: false, error: "Failed to delete event" });
-        }
-      }
-    }
+    const results = await Promise.all(
+      eventIds.map((uid) =>
+        this.rateLimiter.execute(async (): Promise<DeleteResult> => {
+          try {
+            await this.client.deleteCalendarObject({
+              calendarUrl: this.config.calendarUrl,
+              filename: `${uid}.ics`,
+            });
+            return { success: true };
+          } catch (error) {
+            const is404 = error instanceof Error && error.message.includes("404");
+            if (is404) {
+              return { success: true };
+            }
+            this.childLog.error({ error, uid }, "failed to delete event");
+            return { success: false, error: "Failed to delete event" };
+          }
+        }),
+      ),
+    );
 
     return results;
   }
