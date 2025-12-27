@@ -33,9 +33,13 @@ export const formatDayHeading = (date: Date): string => {
     return "Tomorrow";
   }
 
+  const currentYear = today.getFullYear();
+  const dateYear = date.getFullYear();
+
   return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    ...(dateYear !== currentYear && { year: "numeric" }),
   });
 };
