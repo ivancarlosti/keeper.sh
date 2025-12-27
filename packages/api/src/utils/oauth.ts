@@ -8,17 +8,11 @@ import {
 } from "./destinations";
 import { triggerDestinationSync } from "./sync";
 
-export interface OAuthCallbackParams {
+interface OAuthCallbackParams {
   code: string | null;
   state: string | null;
   error: string | null;
   provider: string;
-}
-
-export interface OAuthTokens {
-  access_token: string;
-  refresh_token: string | null;
-  expires_in: number;
 }
 
 /**
@@ -61,8 +55,12 @@ export const buildRedirectUrl = (
 export const handleOAuthCallback = async (
   params: OAuthCallbackParams,
 ): Promise<{ userId: string; redirectUrl: URL }> => {
-  const successUrl = buildRedirectUrl("/dashboard/integrations", { destination: "connected" });
-  const errorUrl = buildRedirectUrl("/dashboard/integrations", { destination: "error" });
+  const successUrl = buildRedirectUrl("/dashboard/integrations", {
+    destination: "connected",
+  });
+  const errorUrl = buildRedirectUrl("/dashboard/integrations", {
+    destination: "error",
+  });
 
   if (!params.provider) {
     log.warn("Missing provider in callback URL");
@@ -89,7 +87,11 @@ export const handleOAuthCallback = async (
     `/api/destinations/callback/${params.provider}`,
     env.BETTER_AUTH_URL,
   );
-  const tokens = await exchangeCodeForTokens(params.provider, params.code, callbackUrl.toString());
+  const tokens = await exchangeCodeForTokens(
+    params.provider,
+    params.code,
+    callbackUrl.toString(),
+  );
 
   if (!tokens.refresh_token) {
     log.error("No refresh token in response");
@@ -109,7 +111,10 @@ export const handleOAuthCallback = async (
     expiresAt,
   );
 
-  log.info({ userId, provider: params.provider }, "calendar destination connected");
+  log.info(
+    { userId, provider: params.provider },
+    "calendar destination connected",
+  );
 
   triggerDestinationSync(userId);
 

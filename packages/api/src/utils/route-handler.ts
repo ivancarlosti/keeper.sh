@@ -1,8 +1,8 @@
 import type { RouteHandler } from "./middleware";
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
 
-export interface RouteModule {
+interface RouteModule {
   GET?: RouteHandler;
   POST?: RouteHandler;
   PUT?: RouteHandler;
@@ -11,7 +11,14 @@ export interface RouteModule {
   HEAD?: RouteHandler;
 }
 
-const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
+const HTTP_METHODS: HttpMethod[] = [
+  "GET",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "HEAD",
+];
 
 export const isHttpMethod = (method: string): method is HttpMethod =>
   HTTP_METHODS.some((httpMethod) => httpMethod === method);

@@ -15,7 +15,6 @@
     "@keeper.sh/env": "workspace:*",
     "@keeper.sh/data-schemas": "workspace:*",
     "@keeper.sh/destination-metadata": "workspace:*",
-    "@keeper.sh/destination-providers": "workspace:*",
     "@keeper.sh/database": "workspace:*",
     "@keeper.sh/log": "workspace:*",
     "@keeper.sh/premium": "workspace:*",

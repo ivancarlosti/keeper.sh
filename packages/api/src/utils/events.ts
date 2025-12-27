@@ -1,14 +1,17 @@
 import { database } from "@keeper.sh/database";
-import { remoteICalSourcesTable, eventStatesTable } from "@keeper.sh/database/schema";
+import {
+  remoteICalSourcesTable,
+  eventStatesTable,
+} from "@keeper.sh/database/schema";
 import { eq, and, inArray, gte, lte, asc } from "drizzle-orm";
 import { parseDateRangeParams, normalizeDateRange } from "./date-range";
 
-export interface SourceMetadata {
+interface SourceMetadata {
   name: string;
   url: string;
 }
 
-export interface EnrichedEvent {
+interface EnrichedEvent {
   id: string;
   startTime: Date;
   endTime: Date;
@@ -42,7 +45,10 @@ export const getEventsInRange = async (
 
   const sourceIds = sources.map((source) => source.id);
   const sourceMap = new Map<string, SourceMetadata>(
-    sources.map((source) => [source.id, { name: source.name, url: source.url }]),
+    sources.map((source) => [
+      source.id,
+      { name: source.name, url: source.url },
+    ]),
   );
 
   const events = await database
@@ -68,7 +74,7 @@ export const getEventsInRange = async (
 /**
  * Enriches raw events with source metadata.
  */
-export const enrichEventsWithSources = (
+const enrichEventsWithSources = (
   events: Array<{
     id: string;
     sourceId: string;

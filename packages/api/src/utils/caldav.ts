@@ -21,18 +21,18 @@ export class CalDAVConnectionError extends Error {
   }
 }
 
-export interface CalDAVCredentials {
+interface CalDAVCredentials {
   username: string;
   password: string;
 }
 
-export interface DiscoveredCalendar {
+interface DiscoveredCalendar {
   url: string;
   displayName: string | undefined;
 }
 
 const VALID_PROVIDERS = ["caldav", "fastmail", "icloud"] as const;
-export type CalDAVProvider = (typeof VALID_PROVIDERS)[number];
+type CalDAVProvider = (typeof VALID_PROVIDERS)[number];
 
 /**
  * Validates that a provider name is valid.
@@ -69,7 +69,7 @@ export const discoverCalendars = async (
  * Validates CalDAV credentials by attempting to discover calendars.
  * Throws an error if credentials are invalid.
  */
-export const validateCredentials = async (
+const validateCredentials = async (
   serverUrl: string,
   credentials: CalDAVCredentials,
 ): Promise<void> => {

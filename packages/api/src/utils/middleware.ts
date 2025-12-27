@@ -1,12 +1,12 @@
 import { auth } from "@keeper.sh/auth";
 import { log } from "@keeper.sh/log";
 
-export interface RouteContext {
+interface RouteContext {
   request: Request;
   params: Record<string, string>;
 }
 
-export interface AuthenticatedRouteContext extends RouteContext {
+interface AuthenticatedRouteContext extends RouteContext {
   userId: string;
 }
 
@@ -15,8 +15,10 @@ export type RouteHandler = (
   params: Record<string, string>,
 ) => Promise<Response>;
 
-export type RouteCallback = (ctx: RouteContext) => Promise<Response>;
-export type AuthenticatedRouteCallback = (ctx: AuthenticatedRouteContext) => Promise<Response>;
+type RouteCallback = (ctx: RouteContext) => Promise<Response>;
+type AuthenticatedRouteCallback = (
+  ctx: AuthenticatedRouteContext,
+) => Promise<Response>;
 
 export const withTracing = (handler: RouteCallback): RouteHandler => {
   return async (request, params) => {
@@ -28,14 +30,16 @@ export const withTracing = (handler: RouteCallback): RouteHandler => {
   };
 };
 
-export const getSession = async (request: Request) => {
+const getSession = async (request: Request) => {
   const session = await auth.api.getSession({
     headers: request.headers,
   });
   return session;
 };
 
-export const withAuth = (handler: AuthenticatedRouteCallback): RouteCallback => {
+export const withAuth = (
+  handler: AuthenticatedRouteCallback,
+): RouteCallback => {
   return async ({ request, params }) => {
     const session = await getSession(request);
     if (!session?.user?.id) {

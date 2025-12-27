@@ -8,6 +8,10 @@
     "packages/*": {
       "project": "src/**/*.{ts,tsx}"
     },
+    "packages/api": {
+      "entry": ["src/routes/**/*.ts"],
+      "project": "src/**/*.{ts,tsx}"
+    },
     "packages/cron": {
       "entry": ["src/jobs/*.ts"],
       "project": "src/**/*.{ts,tsx}"

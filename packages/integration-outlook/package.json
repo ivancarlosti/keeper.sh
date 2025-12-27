@@ -12,7 +12,6 @@
     "@keeper.sh/data-schemas": "workspace:*",
     "@keeper.sh/database": "workspace:*",
     "@keeper.sh/integrations": "workspace:*",
-    "@keeper.sh/log": "workspace:*",
     "@keeper.sh/oauth-microsoft": "workspace:*",
     "@keeper.sh/premium": "workspace:*",
     "drizzle-orm": "0.45.1"

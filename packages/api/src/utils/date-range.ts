@@ -1,9 +1,9 @@
-export interface DateRange {
+interface DateRange {
   from: Date;
   to: Date;
 }
 
-export interface NormalizedDateRange {
+interface NormalizedDateRange {
   start: Date;
   end: Date;
 }
@@ -28,7 +28,10 @@ export const parseDateRangeParams = (url: URL): DateRange => {
 /**
  * Normalizes a date range to start of day and end of day.
  */
-export const normalizeDateRange = (from: Date, to: Date): NormalizedDateRange => {
+export const normalizeDateRange = (
+  from: Date,
+  to: Date,
+): NormalizedDateRange => {
   const start = new Date(from);
   start.setHours(0, 0, 0, 0);
 

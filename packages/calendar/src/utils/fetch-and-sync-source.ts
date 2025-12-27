@@ -1,9 +1,12 @@
 import { log } from "@keeper.sh/log";
 import { pullRemoteCalendar } from "./pull-remote-calendar";
 import { createSnapshot } from "./create-snapshot";
-import { syncSourceFromSnapshot, type Source } from "./sync-source-from-snapshot";
+import {
+  syncSourceFromSnapshot,
+  type Source,
+} from "./sync-source-from-snapshot";
 
-export class SourceSyncError extends Error {
+class SourceSyncError extends Error {
   constructor(
     public sourceId: string,
     cause: unknown,
@@ -23,7 +26,10 @@ export async function fetchAndSyncSource(source: Source) {
     log.trace("fetchAndSyncSource for source '%s' complete", source.id);
   } catch (error) {
     const syncError = new SourceSyncError(source.id, error);
-    log.error({ error: syncError, sourceId: source.id }, "failed to fetch and sync source");
+    log.error(
+      { error: syncError, sourceId: source.id },
+      "failed to fetch and sync source",
+    );
     throw syncError;
   }
 }

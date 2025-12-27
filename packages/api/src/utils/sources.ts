@@ -19,7 +19,7 @@ export class InvalidSourceUrlError extends Error {
   }
 }
 
-export interface Source {
+interface Source {
   id: string;
   userId: string;
   name: string;
@@ -41,7 +41,7 @@ export const getUserSources = async (userId: string): Promise<Source[]> => {
  * Validates that a URL returns a valid iCal file.
  * Throws an error if invalid.
  */
-export const validateSourceUrl = async (url: string): Promise<void> => {
+const validateSourceUrl = async (url: string): Promise<void> => {
   await pullRemoteCalendar("json", url);
 };
 
@@ -83,7 +83,10 @@ export const createSource = async (
   fetchAndSyncSource(source)
     .then(() => triggerDestinationSync(userId))
     .catch((error) => {
-      log.error({ sourceId: source.id, error }, "failed initial sync for source");
+      log.error(
+        { sourceId: source.id, error },
+        "failed initial sync for source",
+      );
     });
 
   return source;

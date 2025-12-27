@@ -19,7 +19,6 @@
   "devDependencies": {
     "knip": "5.77.1",
     "rimraf": "^6.1.2",
-    "tsdav": "^2.1.6",
     "turbo": "2.7.2"
   }
 }
