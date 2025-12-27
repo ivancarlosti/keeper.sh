@@ -1,10 +1,10 @@
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   eventStatesTable,
 } from "@keeper.sh/database/schema";
 import { eq, and, inArray, gte, lte, asc } from "drizzle-orm";
 import { parseDateRangeParams, normalizeDateRange } from "./date-range";
+import { database } from "../context";
 
 interface SourceMetadata {
   name: string;

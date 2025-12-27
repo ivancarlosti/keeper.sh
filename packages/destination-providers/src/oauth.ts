@@ -1,5 +1,15 @@
-import * as googleOAuth from "@keeper.sh/oauth-google";
-import * as microsoftOAuth from "@keeper.sh/oauth-microsoft";
+import {
+  createGoogleOAuthService,
+  fetchUserInfo as fetchGoogleUserInfo,
+  validateState as validateGoogleState,
+  type GoogleOAuthCredentials,
+} from "@keeper.sh/oauth-google";
+import {
+  createMicrosoftOAuthService,
+  fetchUserInfo as fetchMicrosoftUserInfo,
+  validateState as validateMicrosoftState,
+  type MicrosoftOAuthCredentials,
+} from "@keeper.sh/oauth-microsoft";
 
 export interface AuthorizationUrlOptions {
   callbackUrl: string;
@@ -21,46 +31,66 @@ export interface OAuthProvider {
   getAuthorizationUrl: (userId: string, options: AuthorizationUrlOptions) => string;
   exchangeCodeForTokens: (code: string, callbackUrl: string) => Promise<OAuthTokens>;
   fetchUserInfo: (accessToken: string) => Promise<NormalizedUserInfo>;
+  refreshAccessToken: (refreshToken: string) => Promise<OAuthTokens>;
+}
+
+export interface OAuthProvidersConfig {
+  google?: GoogleOAuthCredentials;
+  microsoft?: MicrosoftOAuthCredentials;
+}
+
+export interface OAuthProviders {
+  getProvider: (providerId: string) => OAuthProvider | undefined;
+  isOAuthProvider: (providerId: string) => boolean;
   validateState: (state: string) => string | null;
 }
 
-const createGoogleOAuthProvider = (): OAuthProvider => ({
-  getAuthorizationUrl: googleOAuth.getAuthorizationUrl,
-  exchangeCodeForTokens: googleOAuth.exchangeCodeForTokens,
-  fetchUserInfo: async (accessToken) => {
-    const info = await googleOAuth.fetchUserInfo(accessToken);
-    return { id: info.id, email: info.email };
-  },
-  validateState: googleOAuth.validateState,
-});
+export const createOAuthProviders = (config: OAuthProvidersConfig): OAuthProviders => {
+  const providers: Record<string, OAuthProvider> = {};
 
-const createMicrosoftOAuthProvider = (): OAuthProvider => ({
-  getAuthorizationUrl: microsoftOAuth.getAuthorizationUrl,
-  exchangeCodeForTokens: microsoftOAuth.exchangeCodeForTokens,
-  fetchUserInfo: async (accessToken) => {
-    const info = await microsoftOAuth.fetchUserInfo(accessToken);
-    return { id: info.id, email: info.mail ?? info.userPrincipalName ?? "" };
-  },
-  validateState: microsoftOAuth.validateState,
-});
-
-const oauthProviders: Record<string, OAuthProvider> = {
-  google: createGoogleOAuthProvider(),
-  outlook: createMicrosoftOAuthProvider(),
-};
-
-export const getOAuthProvider = (providerId: string): OAuthProvider | undefined => {
-  return oauthProviders[providerId];
-};
-
-export const isOAuthProvider = (providerId: string): boolean => {
-  return providerId in oauthProviders;
-};
-
-export const validateOAuthState = (state: string): string | null => {
-  for (const provider of Object.values(oauthProviders)) {
-    const userId = provider.validateState(state);
-    if (userId) return userId;
+  if (config.google) {
+    const googleService = createGoogleOAuthService(config.google);
+    providers.google = {
+      getAuthorizationUrl: googleService.getAuthorizationUrl,
+      exchangeCodeForTokens: googleService.exchangeCodeForTokens,
+      refreshAccessToken: googleService.refreshAccessToken,
+      fetchUserInfo: async (accessToken) => {
+        const info = await fetchGoogleUserInfo(accessToken);
+        return { id: info.id, email: info.email };
+      },
+    };
   }
-  return null;
+
+  if (config.microsoft) {
+    const microsoftService = createMicrosoftOAuthService(config.microsoft);
+    providers.outlook = {
+      getAuthorizationUrl: microsoftService.getAuthorizationUrl,
+      exchangeCodeForTokens: microsoftService.exchangeCodeForTokens,
+      refreshAccessToken: microsoftService.refreshAccessToken,
+      fetchUserInfo: async (accessToken) => {
+        const info = await fetchMicrosoftUserInfo(accessToken);
+        return { id: info.id, email: info.mail ?? info.userPrincipalName ?? "" };
+      },
+    };
+  }
+
+  const getProvider = (providerId: string): OAuthProvider | undefined => {
+    return providers[providerId];
+  };
+
+  const isOAuthProvider = (providerId: string): boolean => {
+    return providerId in providers;
+  };
+
+  const validateState = (state: string): string | null => {
+    const googleUserId = validateGoogleState(state);
+    if (googleUserId) return googleUserId;
+
+    const microsoftUserId = validateMicrosoftState(state);
+    if (microsoftUserId) return microsoftUserId;
+
+    return null;
+  };
+
+  return { getProvider, isOAuthProvider, validateState };
 };

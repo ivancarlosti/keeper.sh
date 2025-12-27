@@ -24,8 +24,8 @@
         "@keeper.sh/integration-caldav": "workspace:*",
         "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/log": "workspace:*",
-        "@keeper.sh/oauth-google": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/redis": "workspace:*",
         "drizzle-orm": "0.45.1",
         "ts-ics": "2.4.0",
       },
@@ -43,10 +43,10 @@
         "@keeper.sh/auth-plugin-username-only": "workspace:*",
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/env": "workspace:*",
         "@polar-sh/better-auth": "^1.6.3",
         "@polar-sh/sdk": "^0.42.1",
         "better-auth": "1.4.9",
+        "drizzle-orm": "^0.45.1",
         "resend": "^6.6.0",
       },
       "devDependencies": {
@@ -108,13 +108,15 @@
     "packages/cron": {
       "name": "@keeper.sh/cron",
       "dependencies": {
-        "@keeper.sh/auth": "workspace:*",
         "@keeper.sh/calendar": "workspace:*",
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/destination-providers": "workspace:*",
+        "@keeper.sh/env": "workspace:*",
         "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/log": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/redis": "workspace:*",
+        "@polar-sh/sdk": "^0.42.1",
         "cronbake": "0.4.0",
         "drizzle-orm": "^0.45.1",
       },
@@ -140,7 +142,6 @@
       "name": "@keeper.sh/database",
       "dependencies": {
         "@keeper.sh/env": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
         "drizzle-orm": "0.45.1",
         "pg": "8.16.3",
       },
@@ -172,6 +173,7 @@
         "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/oauth-google": "workspace:*",
         "@keeper.sh/oauth-microsoft": "workspace:*",
+        "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -208,7 +210,6 @@
       "dependencies": {
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/encryption": "workspace:*",
-        "@keeper.sh/env": "workspace:*",
         "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/log": "workspace:*",
         "drizzle-orm": "0.45.1",
@@ -241,8 +242,6 @@
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
-        "@keeper.sh/oauth-google": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
         "drizzle-orm": "0.45.1",
       },
@@ -272,8 +271,6 @@
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
-        "@keeper.sh/oauth-microsoft": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
         "drizzle-orm": "0.45.1",
       },
@@ -287,11 +284,7 @@
       "name": "@keeper.sh/integrations",
       "version": "0.0.1",
       "dependencies": {
-        "@keeper.sh/broadcast": "workspace:*",
-        "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/database": "workspace:*",
         "@keeper.sh/log": "workspace:*",
-        "@keeper.sh/redis": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -315,7 +308,6 @@
       "version": "0.0.1",
       "dependencies": {
         "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/env": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -328,7 +320,6 @@
       "version": "0.0.1",
       "dependencies": {
         "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/env": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -341,7 +332,6 @@
       "dependencies": {
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/env": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
@@ -364,9 +354,6 @@
     },
     "packages/redis": {
       "name": "@keeper.sh/redis",
-      "dependencies": {
-        "@keeper.sh/env": "workspace:*",
-      },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
         "@types/bun": "latest",
@@ -415,7 +402,6 @@
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
         "@keeper.sh/destination-metadata": "workspace:*",
-        "@keeper.sh/destination-providers": "workspace:*",
         "@keeper.sh/env": "workspace:*",
         "@keeper.sh/log": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
@@ -426,6 +412,7 @@
         "@tailwindcss/postcss": "^4.1.18",
         "better-auth": "1.4.9",
         "clsx": "^2.1.1",
+        "drizzle-orm": "^0.45.1",
         "lucide-react": "^0.562.0",
         "next": "16.1.1",
         "postcss": "^8.5.6",

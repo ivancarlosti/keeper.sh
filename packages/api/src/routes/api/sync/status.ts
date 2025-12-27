@@ -1,7 +1,7 @@
-import { database } from "@keeper.sh/database";
 import { syncStatusTable, calendarDestinationsTable } from "@keeper.sh/database/schema";
 import { eq } from "drizzle-orm";
 import { withTracing, withAuth } from "../../../utils/middleware";
+import { database } from "../../../context";
 
 export const GET = withTracing(
   withAuth(async ({ userId }) => {

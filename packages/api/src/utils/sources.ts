@@ -1,10 +1,9 @@
-import { database } from "@keeper.sh/database";
 import { remoteICalSourcesTable } from "@keeper.sh/database/schema";
 import { pullRemoteCalendar, fetchAndSyncSource } from "@keeper.sh/calendar";
-import { canAddSource } from "@keeper.sh/premium";
 import { log } from "@keeper.sh/log";
 import { eq, and } from "drizzle-orm";
 import { triggerDestinationSync } from "./sync";
+import { database, premiumService } from "../context";
 
 export class SourceLimitError extends Error {
   constructor() {
@@ -60,7 +59,7 @@ export const createSource = async (
     .from(remoteICalSourcesTable)
     .where(eq(remoteICalSourcesTable.userId, userId));
 
-  const allowed = await canAddSource(userId, existingSources.length);
+  const allowed = await premiumService.canAddSource(userId, existingSources.length);
   if (!allowed) {
     throw new SourceLimitError();
   }
@@ -80,7 +79,7 @@ export const createSource = async (
     throw new Error("Failed to create source");
   }
 
-  fetchAndSyncSource(source)
+  fetchAndSyncSource(database, source)
     .then(() => triggerDestinationSync(userId))
     .catch((error) => {
       log.error(

@@ -5,12 +5,10 @@
   },
   "exports": {
     "./api": "./src/api.ts",
-    "./auth": "./src/auth.ts",
-    "./database": "./src/database.ts",
+    "./cron": "./src/cron.ts",
     "./database/seed": "./src/database/seed.ts",
     "./database/drizzle-config": "./src/database/drizzle-config.ts",
-    "./next/backend": "./src/next/backend.ts",
-    "./redis": "./src/redis.ts"
+    "./next/backend": "./src/next/backend.ts"
   },
   "type": "module",
   "private": true,

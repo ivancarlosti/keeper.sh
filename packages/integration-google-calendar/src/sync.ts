@@ -1,4 +1,3 @@
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   eventStatesTable,
@@ -6,9 +5,10 @@ import {
   calendarDestinationsTable,
   oauthCredentialsTable,
 } from "@keeper.sh/database/schema";
-import { and, asc, eq, gte, isNotNull } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import type { Plan } from "@keeper.sh/premium";
 import type { SyncableEvent } from "@keeper.sh/integrations";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
 export interface GoogleAccount {
   destinationId: string;
@@ -20,6 +20,7 @@ export interface GoogleAccount {
 }
 
 export const getGoogleAccountsByPlan = async (
+  database: BunSQLDatabase,
   targetPlan: Plan,
 ): Promise<GoogleAccount[]> => {
   const results = await database
@@ -67,6 +68,7 @@ export const getGoogleAccountsByPlan = async (
 };
 
 export const getGoogleAccountsForUser = async (
+  database: BunSQLDatabase,
   userId: string,
 ): Promise<GoogleAccount[]> => {
   const results = await database
@@ -100,7 +102,10 @@ export const getGoogleAccountsForUser = async (
   }));
 };
 
-export const getUserEvents = async (userId: string): Promise<SyncableEvent[]> => {
+export const getUserEvents = async (
+  database: BunSQLDatabase,
+  userId: string,
+): Promise<SyncableEvent[]> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 

@@ -2,13 +2,13 @@ import type { CronOptions } from "cronbake";
 import type { Plan } from "@keeper.sh/premium";
 import { log } from "@keeper.sh/log";
 import { syncDestinationsForUser } from "@keeper.sh/integrations";
-import { destinationProviders } from "@keeper.sh/destination-providers";
 import { fetchAndSyncSource, type Source } from "@keeper.sh/calendar";
 import { getSourcesByPlan } from "./get-sources";
+import { database, destinationProviders, syncCoordinator } from "../context";
 
 const syncUserSources = async (userId: string, sources: Source[]) => {
-  await Promise.allSettled(sources.map(fetchAndSyncSource));
-  await syncDestinationsForUser(userId, destinationProviders);
+  await Promise.allSettled(sources.map((source) => fetchAndSyncSource(database, source)));
+  await syncDestinationsForUser(userId, destinationProviders, syncCoordinator);
 };
 
 export const createSyncJob = (plan: Plan, cron: string): CronOptions => ({

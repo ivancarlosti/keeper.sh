@@ -1,4 +1,8 @@
-export { OutlookCalendarProvider } from "./provider";
+export {
+  createOutlookCalendarProvider,
+  type OutlookCalendarProviderConfig,
+  type OAuthProvider,
+} from "./provider";
 export {
   getOutlookAccountsByPlan,
   getOutlookAccountsForUser,

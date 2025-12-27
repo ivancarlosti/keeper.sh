@@ -1,12 +1,10 @@
-import { database } from "@keeper.sh/database";
 import { calendarDestinationsTable } from "@keeper.sh/database/schema";
 import { createCalDAVClient } from "@keeper.sh/integration-caldav";
 import { encryptPassword } from "@keeper.sh/encryption";
-import { canAddDestination } from "@keeper.sh/premium";
-import env from "@keeper.sh/env/auth";
 import { eq } from "drizzle-orm";
 import { saveCalDAVDestination } from "./destinations";
 import { triggerDestinationSync } from "./sync";
+import { database, premiumService, encryptionKey } from "../context";
 
 export class DestinationLimitError extends Error {
   constructor() {
@@ -98,7 +96,7 @@ export const createCalDAVDestination = async (
     .from(calendarDestinationsTable)
     .where(eq(calendarDestinationsTable.userId, userId));
 
-  const allowed = await canAddDestination(userId, existingDestinations.length);
+  const allowed = await premiumService.canAddDestination(userId, existingDestinations.length);
   if (!allowed) {
     throw new DestinationLimitError();
   }
@@ -109,7 +107,11 @@ export const createCalDAVDestination = async (
     throw new CalDAVConnectionError(error);
   }
 
-  const encrypted = encryptPassword(credentials.password, env.ENCRYPTION_KEY!);
+  if (!encryptionKey) {
+    throw new Error("ENCRYPTION_KEY must be set to use CalDAV destinations");
+  }
+
+  const encrypted = encryptPassword(credentials.password, encryptionKey);
   const serverHost = new URL(serverUrl).host;
   const accountId = `${credentials.username}@${serverHost}`;
 

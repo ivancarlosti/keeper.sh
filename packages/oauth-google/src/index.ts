@@ -4,7 +4,6 @@ import {
   type GoogleTokenResponse,
   type GoogleUserInfo,
 } from "@keeper.sh/data-schemas";
-import env from "@keeper.sh/env/auth";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -35,61 +34,99 @@ export const validateState = (state: string): string | null => {
   return entry.userId;
 };
 
+export interface GoogleOAuthCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
 export interface AuthorizationUrlOptions {
   callbackUrl: string;
   scopes?: string[];
 }
 
-export const getAuthorizationUrl = (
-  userId: string,
-  options: AuthorizationUrlOptions,
-): string => {
-  if (!env.GOOGLE_CLIENT_ID) {
-    throw new Error("GOOGLE_CLIENT_ID is not configured");
-  }
+export interface GoogleOAuthService {
+  getAuthorizationUrl: (userId: string, options: AuthorizationUrlOptions) => string;
+  exchangeCodeForTokens: (code: string, callbackUrl: string) => Promise<GoogleTokenResponse>;
+  refreshAccessToken: (refreshToken: string) => Promise<GoogleTokenResponse>;
+}
 
-  const state = generateState(userId);
-  const scopes = options.scopes ?? [GOOGLE_CALENDAR_SCOPE, GOOGLE_EMAIL_SCOPE];
+export const createGoogleOAuthService = (
+  credentials: GoogleOAuthCredentials,
+): GoogleOAuthService => {
+  const { clientId, clientSecret } = credentials;
 
-  const url = new URL(GOOGLE_AUTH_URL);
-  url.searchParams.set("client_id", env.GOOGLE_CLIENT_ID);
-  url.searchParams.set("redirect_uri", options.callbackUrl);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", scopes.join(" "));
-  url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
-  url.searchParams.set("state", state);
+  const getAuthorizationUrl = (
+    userId: string,
+    options: AuthorizationUrlOptions,
+  ): string => {
+    const state = generateState(userId);
+    const scopes = options.scopes ?? [GOOGLE_CALENDAR_SCOPE, GOOGLE_EMAIL_SCOPE];
 
-  return url.toString();
-};
+    const url = new URL(GOOGLE_AUTH_URL);
+    url.searchParams.set("client_id", clientId);
+    url.searchParams.set("redirect_uri", options.callbackUrl);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", scopes.join(" "));
+    url.searchParams.set("access_type", "offline");
+    url.searchParams.set("prompt", "consent");
+    url.searchParams.set("state", state);
 
-export const exchangeCodeForTokens = async (
-  code: string,
-  callbackUrl: string,
-): Promise<GoogleTokenResponse> => {
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    throw new Error("Google OAuth credentials are not configured");
-  }
+    return url.toString();
+  };
 
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      code,
-      grant_type: "authorization_code",
-      redirect_uri: callbackUrl,
-    }),
-  });
+  const exchangeCodeForTokens = async (
+    code: string,
+    callbackUrl: string,
+  ): Promise<GoogleTokenResponse> => {
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: callbackUrl,
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Token exchange failed (${response.status}): ${error}`);
-  }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Token exchange failed (${response.status}): ${error}`);
+    }
 
-  const body = await response.json();
-  return googleTokenResponseSchema.assert(body);
+    const body = await response.json();
+    return googleTokenResponseSchema.assert(body);
+  };
+
+  const refreshAccessToken = async (
+    refreshToken: string,
+  ): Promise<GoogleTokenResponse> => {
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Token refresh failed (${response.status}): ${error}`);
+    }
+
+    const body = await response.json();
+    return googleTokenResponseSchema.assert(body);
+  };
+
+  return {
+    getAuthorizationUrl,
+    exchangeCodeForTokens,
+    refreshAccessToken,
+  };
 };
 
 export const fetchUserInfo = async (
@@ -105,33 +142,6 @@ export const fetchUserInfo = async (
 
   const body = await response.json();
   return googleUserInfoSchema.assert(body);
-};
-
-export const refreshAccessToken = async (
-  refreshToken: string,
-): Promise<GoogleTokenResponse> => {
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    throw new Error("Google OAuth credentials are not configured");
-  }
-
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Token refresh failed (${response.status}): ${error}`);
-  }
-
-  const body = await response.json();
-  return googleTokenResponseSchema.assert(body);
 };
 
 export type { GoogleTokenResponse, GoogleUserInfo };

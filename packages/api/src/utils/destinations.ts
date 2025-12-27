@@ -1,25 +1,22 @@
-import { database } from "@keeper.sh/database";
 import {
   calendarDestinationsTable,
   oauthCredentialsTable,
   caldavCredentialsTable,
 } from "@keeper.sh/database/schema";
 import { eq, and } from "drizzle-orm";
-import {
-  getOAuthProvider,
-  isOAuthProvider,
-  validateOAuthState,
-  type AuthorizationUrlOptions,
-} from "@keeper.sh/destination-providers";
+import type { AuthorizationUrlOptions } from "@keeper.sh/destination-providers";
+import { database, oauthProviders } from "../context";
 
-export { isOAuthProvider };
+export const isOAuthProvider = (provider: string): boolean => {
+  return oauthProviders.isOAuthProvider(provider);
+};
 
 export const getAuthorizationUrl = (
   provider: string,
   userId: string,
   options: AuthorizationUrlOptions,
 ): string => {
-  const oauthProvider = getOAuthProvider(provider);
+  const oauthProvider = oauthProviders.getProvider(provider);
   if (!oauthProvider) {
     throw new Error(`OAuth provider not found: ${provider}`);
   }
@@ -31,7 +28,7 @@ export const exchangeCodeForTokens = async (
   code: string,
   callbackUrl: string,
 ) => {
-  const oauthProvider = getOAuthProvider(provider);
+  const oauthProvider = oauthProviders.getProvider(provider);
   if (!oauthProvider) {
     throw new Error(`OAuth provider not found: ${provider}`);
   }
@@ -39,7 +36,7 @@ export const exchangeCodeForTokens = async (
 };
 
 export const fetchUserInfo = async (provider: string, accessToken: string) => {
-  const oauthProvider = getOAuthProvider(provider);
+  const oauthProvider = oauthProviders.getProvider(provider);
   if (!oauthProvider) {
     throw new Error(`OAuth provider not found: ${provider}`);
   }
@@ -47,7 +44,7 @@ export const fetchUserInfo = async (provider: string, accessToken: string) => {
 };
 
 export const validateState = (state: string): string | null => {
-  return validateOAuthState(state);
+  return oauthProviders.validateState(state);
 };
 
 interface CalendarDestination {

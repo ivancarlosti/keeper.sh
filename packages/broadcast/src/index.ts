@@ -4,9 +4,10 @@ import {
   broadcastMessageSchema,
   type BroadcastMessage,
 } from "@keeper.sh/data-schemas";
-import { redis, createSubscriber } from "@keeper.sh/redis";
+import { createSubscriber } from "@keeper.sh/redis";
 import { connections, pingIntervals } from "./state";
 import type { Socket } from "./types";
+import type { RedisClient } from "bun";
 
 export type { BroadcastData, Socket } from "./types";
 
@@ -16,13 +17,16 @@ export interface WebsocketHandlerOptions {
   onConnect?: OnConnectCallback;
 }
 
-const CHANNEL = "broadcast";
+export interface BroadcastConfig {
+  redis: RedisClient;
+}
 
-export const emit = (userId: string, event: string, data: unknown): void => {
-  const message: BroadcastMessage = { userId, event, data };
-  redis.publish(CHANNEL, JSON.stringify(message));
-  log.debug({ userId, event }, "broadcast published to redis");
-};
+export interface BroadcastService {
+  emit: (userId: string, event: string, data: unknown) => void;
+  startSubscriber: () => Promise<void>;
+}
+
+const CHANNEL = "broadcast";
 
 const sendToUser = (userId: string, event: string, data: unknown): void => {
   const userConnections = connections.get(userId);
@@ -42,19 +46,31 @@ const sendToUser = (userId: string, event: string, data: unknown): void => {
   );
 };
 
-export const startSubscriber = async (): Promise<void> => {
-  const subscriber = await createSubscriber();
+export const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
+  const { redis } = config;
 
-  await subscriber.subscribe(CHANNEL, (message) => {
-    const parsed = JSON.parse(message);
-    if (!broadcastMessageSchema.allows(parsed)) {
-      log.error("invalid broadcast message received from redis");
-      return;
-    }
-    sendToUser(parsed.userId, parsed.event, parsed.data);
-  });
+  const emit = (userId: string, event: string, data: unknown): void => {
+    const message: BroadcastMessage = { userId, event, data };
+    redis.publish(CHANNEL, JSON.stringify(message));
+    log.debug({ userId, event }, "broadcast published to redis");
+  };
 
-  log.info("broadcast subscriber started");
+  const startSubscriber = async (): Promise<void> => {
+    const subscriber = await createSubscriber(redis);
+
+    await subscriber.subscribe(CHANNEL, (message) => {
+      const parsed = JSON.parse(message);
+      if (!broadcastMessageSchema.allows(parsed)) {
+        log.error("invalid broadcast message received from redis");
+        return;
+      }
+      sendToUser(parsed.userId, parsed.event, parsed.data);
+    });
+
+    log.info("broadcast subscriber started");
+  };
+
+  return { emit, startSubscriber };
 };
 
 export const addConnection = (userId: string, socket: Socket): void => {

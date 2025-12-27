@@ -1,10 +1,11 @@
-import { database } from "@keeper.sh/database";
 import { calendarDestinationsTable } from "@keeper.sh/database/schema";
-import { canAddDestination } from "@keeper.sh/premium";
-import env from "@keeper.sh/env/auth";
 import { eq } from "drizzle-orm";
 import { withTracing, withAuth } from "../../../utils/middleware";
-import { getAuthorizationUrl, isOAuthProvider } from "../../../utils/destinations";
+import {
+  getAuthorizationUrl,
+  isOAuthProvider,
+} from "../../../utils/destinations";
+import { database, premiumService, baseUrl } from "../../../context";
 
 export const GET = withTracing(
   withAuth(async ({ request, userId }) => {
@@ -20,10 +21,13 @@ export const GET = withTracing(
       .from(calendarDestinationsTable)
       .where(eq(calendarDestinationsTable.userId, userId));
 
-    const allowed = await canAddDestination(userId, existingDestinations.length);
+    const allowed = await premiumService.canAddDestination(
+      userId,
+      existingDestinations.length,
+    );
 
     if (!allowed) {
-      const errorUrl = new URL("/dashboard/integrations", env.BETTER_AUTH_URL);
+      const errorUrl = new URL("/dashboard/integrations", baseUrl);
       errorUrl.searchParams.set(
         "error",
         "Destination limit reached. Upgrade to Pro for unlimited destinations.",
@@ -33,7 +37,7 @@ export const GET = withTracing(
 
     const callbackUrl = new URL(
       `/api/destinations/callback/${provider}`,
-      env.BETTER_AUTH_URL,
+      baseUrl,
     );
     const authUrl = getAuthorizationUrl(provider, userId, {
       callbackUrl: callbackUrl.toString(),

@@ -1,5 +1,4 @@
 import env from "@keeper.sh/env/api";
-import { database } from "@keeper.sh/database";
 import {
   syncStatusTable,
   calendarDestinationsTable,
@@ -7,7 +6,6 @@ import {
 import { log } from "@keeper.sh/log";
 import {
   createWebsocketHandler,
-  startSubscriber,
   type BroadcastData,
   type Socket,
 } from "@keeper.sh/broadcast";
@@ -15,6 +13,7 @@ import { eq } from "drizzle-orm";
 import { join } from "node:path";
 import { socketTokens } from "./utils/state";
 import { isHttpMethod, isRouteModule } from "./utils/route-handler";
+import { database, broadcastService } from "./context";
 
 const validateSocketToken = (token: string): string | null => {
   const entry = socketTokens.get(token);
@@ -119,6 +118,6 @@ const server = Bun.serve<BroadcastData>({
   },
 });
 
-startSubscriber();
+broadcastService.startSubscriber();
 
 log.info({ port: server.port }, "server started");

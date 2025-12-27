@@ -1,6 +1,7 @@
 import {
   CalendarProvider,
   RateLimiter,
+  type DestinationProvider,
   type SyncableEvent,
   type PushResult,
   type DeleteResult,
@@ -9,21 +10,70 @@ import {
   type CalDAVConfig,
   type SyncContext,
 } from "@keeper.sh/integrations";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { CalDAVClient } from "./caldav-client";
 import { eventToICalString, parseICalToRemoteEvent } from "./ics-converter";
-import {
-  getCalDAVAccountsForUser,
-  getUserEvents,
-  getDecryptedPassword,
-  type CalDAVAccount,
-} from "./sync";
+import { createCalDAVService, type CalDAVAccount } from "./sync";
 
 export interface CalDAVProviderOptions {
   providerId: string;
   providerName: string;
 }
 
-export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
+export interface CalDAVProviderConfig {
+  database: BunSQLDatabase;
+  encryptionKey: string;
+}
+
+export const createCalDAVProvider = (
+  config: CalDAVProviderConfig,
+  options: CalDAVProviderOptions = {
+    providerId: "caldav",
+    providerName: "CalDAV",
+  },
+): DestinationProvider => {
+  const caldavService = createCalDAVService(config);
+
+  const syncForUser = async (
+    userId: string,
+    context: SyncContext,
+  ): Promise<SyncResult | null> => {
+    const accounts = await caldavService.getCalDAVAccountsForUser(userId, options.providerId);
+    if (accounts.length === 0) return null;
+
+    const localEvents = await caldavService.getUserEvents(userId);
+
+    const results = await Promise.all(
+      accounts.map((account) => {
+        const password = caldavService.getDecryptedPassword(account.encryptedPassword);
+        const provider = new CalDAVProviderInstance(
+          {
+            destinationId: account.destinationId,
+            userId: account.userId,
+            serverUrl: account.serverUrl,
+            username: account.username,
+            calendarUrl: account.calendarUrl,
+          },
+          password,
+          options,
+        );
+        return provider.sync(localEvents, context);
+      }),
+    );
+
+    return results.reduce<SyncResult>(
+      (combined, result) => ({
+        added: combined.added + result.added,
+        removed: combined.removed + result.removed,
+      }),
+      { added: 0, removed: 0 },
+    );
+  };
+
+  return { syncForUser };
+};
+
+class CalDAVProviderInstance extends CalendarProvider<CalDAVConfig> {
   readonly name: string;
   readonly id: string;
 
@@ -50,54 +100,6 @@ export class CalDAVProvider extends CalendarProvider<CalDAVConfig> {
     });
 
     this.rateLimiter = new RateLimiter(5);
-  }
-
-  static async syncForUser(
-    userId: string,
-    context: SyncContext,
-  ): Promise<SyncResult | null> {
-    const accounts = await getCalDAVAccountsForUser(userId, "caldav");
-    if (accounts.length === 0) return null;
-
-    const localEvents = await getUserEvents(userId);
-
-    const results = await Promise.all(
-      accounts.map((account) =>
-        CalDAVProvider.syncAccount(account, localEvents, context),
-      ),
-    );
-
-    return results.reduce<SyncResult>(
-      (combined, result) => ({
-        added: combined.added + result.added,
-        removed: combined.removed + result.removed,
-      }),
-      { added: 0, removed: 0 },
-    );
-  }
-
-  protected static async syncAccount(
-    account: CalDAVAccount,
-    localEvents: SyncableEvent[],
-    context: SyncContext,
-    options: CalDAVProviderOptions = {
-      providerId: "caldav",
-      providerName: "CalDAV",
-    },
-  ): Promise<SyncResult> {
-    const password = getDecryptedPassword(account.encryptedPassword);
-    const provider = new CalDAVProvider(
-      {
-        destinationId: account.destinationId,
-        userId: account.userId,
-        serverUrl: account.serverUrl,
-        username: account.username,
-        calendarUrl: account.calendarUrl,
-      },
-      password,
-      options,
-    );
-    return provider.sync(localEvents, context);
   }
 
   async pushEvents(events: SyncableEvent[]): Promise<PushResult[]> {

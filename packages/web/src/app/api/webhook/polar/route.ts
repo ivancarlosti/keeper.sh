@@ -1,8 +1,8 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { log } from "@keeper.sh/log";
-import { database } from "@keeper.sh/database";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
 import { NextResponse } from "next/server";
+import { getDatabase } from "@/lib/server";
 
 const POLAR_WEBHOOK_SECRET = process.env.POLAR_WEBHOOK_SECRET;
 
@@ -12,6 +12,7 @@ const upsertSubscription = async (
   polarSubscriptionId: string,
 ) => {
   log.trace("upsertSubscription for user '%s' started", userId);
+  const database = getDatabase();
   await database
     .insert(userSubscriptionsTable)
     .values({

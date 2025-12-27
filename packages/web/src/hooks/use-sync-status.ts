@@ -1,11 +1,11 @@
 import useSWRSubscription from "swr/subscription";
 import { socketMessageSchema, syncStatusSchema, type SyncStatus } from "@keeper.sh/data-schemas";
 
-const getSocketUrl = (): string => {
+function getSocketUrl(): string {
   const url = process.env.NEXT_PUBLIC_SOCKET_URL;
   if (!url) throw new Error("NEXT_PUBLIC_SOCKET_URL is not set");
   return url;
-};
+}
 
 const fetchSocketToken = async (): Promise<string> => {
   const response = await fetch("/api/socket/token");
@@ -24,7 +24,7 @@ type SyncStatusRecord = Record<string, SyncStatus>;
 type Next = (error?: Error | null, data?: SyncStatusRecord) => void;
 
 export function useSyncStatus() {
-  return useSWRSubscription(getSocketUrl(), (baseUrl: string, { next }: { next: Next }) => {
+  return useSWRSubscription("sync-status", (_, { next }: { next: Next }) => {
     let socket: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let statuses: SyncStatusRecord = {};
@@ -34,6 +34,7 @@ export function useSyncStatus() {
       if (isClosing) return;
 
       try {
+        const baseUrl = getSocketUrl();
         const token = await fetchSocketToken();
         if (isClosing) return;
 

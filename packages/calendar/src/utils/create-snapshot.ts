@@ -1,9 +1,13 @@
-import { database } from "@keeper.sh/database";
 import { calendarSnapshotsTable, remoteICalSourcesTable } from "@keeper.sh/database/schema";
 import { eq } from "drizzle-orm";
 import { log } from "@keeper.sh/log";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
-export async function createSnapshot(sourceId: string, ical: string) {
+export async function createSnapshot(
+  database: BunSQLDatabase,
+  sourceId: string,
+  ical: string,
+) {
   log.trace("createSnapshot for source '%s' started", sourceId);
 
   const [source] = await database

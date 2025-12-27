@@ -1,4 +1,3 @@
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   eventStatesTable,
@@ -9,10 +8,11 @@ import { log } from "@keeper.sh/log";
 import { eq, inArray, desc } from "drizzle-orm";
 import { parseIcsEvents } from "./parse-ics-events";
 import { diffEvents } from "./diff-events";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
 export type Source = typeof remoteICalSourcesTable.$inferSelect;
 
-const getLatestSnapshot = async (sourceId: string) => {
+const getLatestSnapshot = async (database: BunSQLDatabase, sourceId: string) => {
   const [snapshot] = await database
     .select({ ical: calendarSnapshotsTable.ical })
     .from(calendarSnapshotsTable)
@@ -24,7 +24,7 @@ const getLatestSnapshot = async (sourceId: string) => {
   return convertIcsCalendar(undefined, snapshot.ical);
 };
 
-const getStoredEvents = async (sourceId: string) => {
+const getStoredEvents = async (database: BunSQLDatabase, sourceId: string) => {
   return database
     .select({
       id: eventStatesTable.id,
@@ -35,7 +35,11 @@ const getStoredEvents = async (sourceId: string) => {
     .where(eq(eventStatesTable.sourceId, sourceId));
 };
 
-const removeEvents = async (sourceId: string, eventIds: string[]) => {
+const removeEvents = async (
+  database: BunSQLDatabase,
+  sourceId: string,
+  eventIds: string[],
+) => {
   await database
     .delete(eventStatesTable)
     .where(inArray(eventStatesTable.id, eventIds));
@@ -44,6 +48,7 @@ const removeEvents = async (sourceId: string, eventIds: string[]) => {
 };
 
 const addEvents = async (
+  database: BunSQLDatabase,
   sourceId: string,
   events: { startTime: Date; endTime: Date }[],
 ) => {
@@ -57,10 +62,13 @@ const addEvents = async (
   log.debug("added %s events to source '%s'", events.length, sourceId);
 };
 
-export async function syncSourceFromSnapshot(source: Source) {
+export async function syncSourceFromSnapshot(
+  database: BunSQLDatabase,
+  source: Source,
+) {
   log.trace("syncSourceFromSnapshot for source '%s' started", source.id);
 
-  const icsCalendar = await getLatestSnapshot(source.id);
+  const icsCalendar = await getLatestSnapshot(database, source.id);
   if (!icsCalendar) {
     log.debug("no snapshot found for source '%s'", source.id);
     log.trace("syncSourceFromSnapshot for source '%s' complete", source.id);
@@ -68,16 +76,16 @@ export async function syncSourceFromSnapshot(source: Source) {
   }
 
   const remoteEvents = parseIcsEvents(icsCalendar);
-  const storedEvents = await getStoredEvents(source.id);
+  const storedEvents = await getStoredEvents(database, source.id);
   const { toAdd, toRemove } = diffEvents(remoteEvents, storedEvents);
 
   if (toRemove.length > 0) {
     const eventIds = toRemove.map((event) => event.id);
-    await removeEvents(source.id, eventIds);
+    await removeEvents(database, source.id, eventIds);
   }
 
   if (toAdd.length > 0) {
-    await addEvents(source.id, toAdd);
+    await addEvents(database, source.id, toAdd);
   }
 
   if (toAdd.length === 0 && toRemove.length === 0) {

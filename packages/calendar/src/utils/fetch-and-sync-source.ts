@@ -1,4 +1,5 @@
 import { log } from "@keeper.sh/log";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { pullRemoteCalendar } from "./pull-remote-calendar";
 import { createSnapshot } from "./create-snapshot";
 import {
@@ -16,13 +17,16 @@ class SourceSyncError extends Error {
   }
 }
 
-export async function fetchAndSyncSource(source: Source) {
+export async function fetchAndSyncSource(
+  database: BunSQLDatabase,
+  source: Source,
+) {
   log.trace("fetchAndSyncSource for source '%s' started", source.id);
 
   try {
     const { ical } = await pullRemoteCalendar("ical", source.url);
-    await createSnapshot(source.id, ical);
-    await syncSourceFromSnapshot(source);
+    await createSnapshot(database, source.id, ical);
+    await syncSourceFromSnapshot(database, source);
     log.trace("fetchAndSyncSource for source '%s' complete", source.id);
   } catch (error) {
     const syncError = new SourceSyncError(source.id, error);

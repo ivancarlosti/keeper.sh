@@ -1,6 +1,7 @@
 import {
   CalendarProvider,
   RateLimiter,
+  type DestinationProvider,
   type SyncableEvent,
   type PushResult,
   type DeleteResult,
@@ -16,13 +17,12 @@ import {
   googleApiErrorSchema,
   type GoogleEvent,
 } from "@keeper.sh/data-schemas";
-import { database } from "@keeper.sh/database";
 import {
   oauthCredentialsTable,
   calendarDestinationsTable,
 } from "@keeper.sh/database/schema";
 import { eq } from "drizzle-orm";
-import { refreshAccessToken } from "@keeper.sh/oauth-google";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { getGoogleAccountsForUser, getUserEvents } from "./sync";
 
 const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3/";
@@ -35,39 +35,44 @@ const isRateLimitError = (error: unknown): boolean => {
   );
 };
 
-export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfig> {
-  readonly name = "Google Calendar";
-  readonly id = "google";
+export interface OAuthProvider {
+  refreshAccessToken: (refreshToken: string) => Promise<{ access_token: string; expires_in: number }>;
+}
 
-  private currentAccessToken: string;
-  private rateLimiter: RateLimiter;
+export interface GoogleCalendarProviderConfig {
+  database: BunSQLDatabase;
+  oauthProvider: OAuthProvider;
+}
 
-  constructor(config: GoogleCalendarConfig) {
-    super(config);
-    this.currentAccessToken = config.accessToken;
-    this.rateLimiter = new RateLimiter(10);
-  }
+export const createGoogleCalendarProvider = (
+  config: GoogleCalendarProviderConfig,
+): DestinationProvider => {
+  const { database, oauthProvider } = config;
 
-  static async syncForUser(
+  const syncForUser = async (
     userId: string,
     context: SyncContext,
-  ): Promise<SyncResult | null> {
-    const googleAccounts = await getGoogleAccountsForUser(userId);
+  ): Promise<SyncResult | null> => {
+    const googleAccounts = await getGoogleAccountsForUser(database, userId);
     if (googleAccounts.length === 0) return null;
 
-    const localEvents = await getUserEvents(userId);
+    const localEvents = await getUserEvents(database, userId);
 
     const results = await Promise.all(
       googleAccounts.map((account) => {
-        const provider = new GoogleCalendarProvider({
-          destinationId: account.destinationId,
-          userId: account.userId,
-          accountId: account.accountId,
-          accessToken: account.accessToken,
-          refreshToken: account.refreshToken,
-          accessTokenExpiresAt: account.accessTokenExpiresAt,
-          calendarId: "primary",
-        });
+        const provider = new GoogleCalendarProviderInstance(
+          {
+            destinationId: account.destinationId,
+            userId: account.userId,
+            accountId: account.accountId,
+            accessToken: account.accessToken,
+            refreshToken: account.refreshToken,
+            accessTokenExpiresAt: account.accessTokenExpiresAt,
+            calendarId: "primary",
+          },
+          database,
+          oauthProvider,
+        );
         return provider.sync(localEvents, context);
       }),
     );
@@ -79,6 +84,30 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
       }),
       { added: 0, removed: 0 },
     );
+  };
+
+  return { syncForUser };
+};
+
+class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConfig> {
+  readonly name = "Google Calendar";
+  readonly id = "google";
+
+  private currentAccessToken: string;
+  private rateLimiter: RateLimiter;
+  private database: BunSQLDatabase;
+  private oauthProvider: OAuthProvider;
+
+  constructor(
+    config: GoogleCalendarConfig,
+    database: BunSQLDatabase,
+    oauthProvider: OAuthProvider,
+  ) {
+    super(config);
+    this.currentAccessToken = config.accessToken;
+    this.rateLimiter = new RateLimiter(10);
+    this.database = database;
+    this.oauthProvider = oauthProvider;
   }
 
   private get headers(): Record<string, string> {
@@ -97,11 +126,11 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
 
     this.childLog.info({ accountId }, "refreshing token");
 
-    const tokenData = await refreshAccessToken(refreshToken);
+    const tokenData = await this.oauthProvider.refreshAccessToken(refreshToken);
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
     this.childLog.debug({ accountId }, "updating database with new token");
-    const [destination] = await database
+    const [destination] = await this.database
       .select({
         oauthCredentialId: calendarDestinationsTable.oauthCredentialId,
       })
@@ -110,7 +139,7 @@ export class GoogleCalendarProvider extends CalendarProvider<GoogleCalendarConfi
       .limit(1);
 
     if (destination?.oauthCredentialId) {
-      await database
+      await this.database
         .update(oauthCredentialsTable)
         .set({
           accessToken: tokenData.access_token,

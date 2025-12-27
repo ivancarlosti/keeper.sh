@@ -1,7 +1,6 @@
-import { database } from "@keeper.sh/database";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
-import env from "@keeper.sh/env/auth";
 import { eq } from "drizzle-orm";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import {
   FREE_SOURCE_LIMIT,
   PRO_SOURCE_LIMIT,
@@ -11,50 +10,70 @@ import {
   type Plan,
 } from "./constants";
 
-function isCommercialMode(): boolean {
-  return env.COMMERCIAL_MODE === true;
+export interface PremiumConfig {
+  database: BunSQLDatabase;
+  commercialMode: boolean;
 }
 
-async function fetchUserSubscriptionPlan(userId: string): Promise<Plan> {
-  const [subscription] = await database
-    .select({ plan: userSubscriptionsTable.plan })
-    .from(userSubscriptionsTable)
-    .where(eq(userSubscriptionsTable.userId, userId))
-    .limit(1);
-
-  return planSchema.assert(subscription?.plan ?? "free");
+export interface PremiumService {
+  getUserPlan: (userId: string) => Promise<Plan>;
+  getSourceLimit: (plan: Plan) => number;
+  getDestinationLimit: (plan: Plan) => number;
+  canAddSource: (userId: string, currentCount: number) => Promise<boolean>;
+  canAddDestination: (userId: string, currentCount: number) => Promise<boolean>;
 }
 
-export async function getUserPlan(userId: string): Promise<Plan> {
-  if (!isCommercialMode()) {
-    return "pro";
-  }
+export const createPremiumService = (config: PremiumConfig): PremiumService => {
+  const { database, commercialMode } = config;
 
-  return fetchUserSubscriptionPlan(userId);
-}
+  const fetchUserSubscriptionPlan = async (userId: string): Promise<Plan> => {
+    const [subscription] = await database
+      .select({ plan: userSubscriptionsTable.plan })
+      .from(userSubscriptionsTable)
+      .where(eq(userSubscriptionsTable.userId, userId))
+      .limit(1);
 
-export function getSourceLimit(plan: Plan): number {
-  return plan === "pro" ? PRO_SOURCE_LIMIT : FREE_SOURCE_LIMIT;
-}
+    return planSchema.assert(subscription?.plan ?? "free");
+  };
 
-export async function canAddSource(
-  userId: string,
-  currentCount: number,
-): Promise<boolean> {
-  const plan = await getUserPlan(userId);
-  const limit = getSourceLimit(plan);
-  return currentCount < limit;
-}
+  const getUserPlan = async (userId: string): Promise<Plan> => {
+    if (!commercialMode) {
+      return "pro";
+    }
+    return fetchUserSubscriptionPlan(userId);
+  };
 
-export function getDestinationLimit(plan: Plan): number {
-  return plan === "pro" ? PRO_DESTINATION_LIMIT : FREE_DESTINATION_LIMIT;
-}
+  const getSourceLimit = (plan: Plan): number => {
+    return plan === "pro" ? PRO_SOURCE_LIMIT : FREE_SOURCE_LIMIT;
+  };
 
-export async function canAddDestination(
-  userId: string,
-  currentCount: number,
-): Promise<boolean> {
-  const plan = await getUserPlan(userId);
-  const limit = getDestinationLimit(plan);
-  return currentCount < limit;
-}
+  const getDestinationLimit = (plan: Plan): number => {
+    return plan === "pro" ? PRO_DESTINATION_LIMIT : FREE_DESTINATION_LIMIT;
+  };
+
+  const canAddSource = async (
+    userId: string,
+    currentCount: number,
+  ): Promise<boolean> => {
+    const plan = await getUserPlan(userId);
+    const limit = getSourceLimit(plan);
+    return currentCount < limit;
+  };
+
+  const canAddDestination = async (
+    userId: string,
+    currentCount: number,
+  ): Promise<boolean> => {
+    const plan = await getUserPlan(userId);
+    const limit = getDestinationLimit(plan);
+    return currentCount < limit;
+  };
+
+  return {
+    getUserPlan,
+    getSourceLimit,
+    getDestinationLimit,
+    canAddSource,
+    canAddDestination,
+  };
+};

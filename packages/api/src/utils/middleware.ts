@@ -1,5 +1,5 @@
-import { auth } from "@keeper.sh/auth";
 import { log } from "@keeper.sh/log";
+import { auth } from "../context";
 
 interface RouteContext {
   request: Request;

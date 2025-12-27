@@ -1,6 +1,6 @@
-import { database } from "@keeper.sh/database";
 import { remoteICalSourcesTable } from "@keeper.sh/database/schema";
-import { getUserPlan, type Plan } from "@keeper.sh/premium";
+import type { Plan } from "@keeper.sh/premium";
+import { database, premiumService } from "../context";
 
 export async function getSourcesByPlan(targetPlan: Plan) {
   const sources = await database.select().from(remoteICalSourcesTable);
@@ -9,7 +9,7 @@ export async function getSourcesByPlan(targetPlan: Plan) {
 
   for (const source of sources) {
     if (!userPlans.has(source.userId)) {
-      userPlans.set(source.userId, await getUserPlan(source.userId));
+      userPlans.set(source.userId, await premiumService.getUserPlan(source.userId));
     }
   }
 

@@ -1,8 +1,8 @@
-import { database } from "@keeper.sh/database";
 import { remoteICalSourcesTable, eventStatesTable } from "@keeper.sh/database/schema";
 import { generateIcsCalendar, type IcsCalendar, type IcsEvent } from "ts-ics";
 import { eq, inArray, asc } from "drizzle-orm";
 import { resolveUserIdentifier } from "./user";
+import { database } from "../context";
 
 interface CalendarEvent {
   id: string;

@@ -1,4 +1,3 @@
-import env from "@keeper.sh/env/auth";
 import { log } from "@keeper.sh/log";
 import {
   exchangeCodeForTokens,
@@ -7,6 +6,7 @@ import {
   validateState,
 } from "./destinations";
 import { triggerDestinationSync } from "./sync";
+import { baseUrl } from "../context";
 
 interface OAuthCallbackParams {
   code: string | null;
@@ -38,7 +38,7 @@ export const buildRedirectUrl = (
   path: string,
   params?: Record<string, string>,
 ): URL => {
-  const url = new URL(path, env.BETTER_AUTH_URL);
+  const url = new URL(path, baseUrl);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
@@ -85,7 +85,7 @@ export const handleOAuthCallback = async (
 
   const callbackUrl = new URL(
     `/api/destinations/callback/${params.provider}`,
-    env.BETTER_AUTH_URL,
+    baseUrl,
   );
   const tokens = await exchangeCodeForTokens(
     params.provider,

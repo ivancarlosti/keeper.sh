@@ -1,6 +1,9 @@
 import { RedisClient } from "bun";
-import env from "@keeper.sh/env/redis";
 
-export const redis = new RedisClient(env.REDIS_URL);
+export const createRedis = (url: string): RedisClient => {
+  return new RedisClient(url);
+};
 
-export const createSubscriber = () => redis.duplicate();
+export const createSubscriber = async (redis: RedisClient): Promise<RedisClient> => {
+  return redis.duplicate();
+};

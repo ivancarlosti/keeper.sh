@@ -1,4 +1,3 @@
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   eventStatesTable,
@@ -9,6 +8,7 @@ import {
 import { and, asc, eq, gte } from "drizzle-orm";
 import type { Plan } from "@keeper.sh/premium";
 import type { SyncableEvent } from "@keeper.sh/integrations";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
 export interface OutlookAccount {
   destinationId: string;
@@ -20,6 +20,7 @@ export interface OutlookAccount {
 }
 
 export const getOutlookAccountsByPlan = async (
+  database: BunSQLDatabase,
   targetPlan: Plan,
 ): Promise<OutlookAccount[]> => {
   const results = await database
@@ -67,6 +68,7 @@ export const getOutlookAccountsByPlan = async (
 };
 
 export const getOutlookAccountsForUser = async (
+  database: BunSQLDatabase,
   userId: string,
 ): Promise<OutlookAccount[]> => {
   const results = await database
@@ -100,7 +102,10 @@ export const getOutlookAccountsForUser = async (
   }));
 };
 
-export const getUserEvents = async (userId: string): Promise<SyncableEvent[]> => {
+export const getUserEvents = async (
+  database: BunSQLDatabase,
+  userId: string,
+): Promise<SyncableEvent[]> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 

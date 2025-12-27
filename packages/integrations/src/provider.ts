@@ -9,13 +9,9 @@ import type {
   SlotOperations,
   ListRemoteEventsOptions,
 } from "./types";
-import type { SyncStatus } from "@keeper.sh/data-schemas";
 import { generateEventUid, isKeeperEvent } from "./event-identity";
-import { isSyncCurrent, type SyncContext } from "./sync-coordinator";
+import type { SyncContext } from "./sync-coordinator";
 import { log } from "@keeper.sh/log";
-import { emit } from "@keeper.sh/broadcast";
-import { database } from "@keeper.sh/database";
-import { syncStatusTable } from "@keeper.sh/database/schema";
 
 export abstract class CalendarProvider<
   TConfig extends ProviderConfig = ProviderConfig,
@@ -33,7 +29,7 @@ export abstract class CalendarProvider<
 
   async sync(
     localEvents: SyncableEvent[],
-    context: SyncContext,
+    _context: SyncContext,
   ): Promise<SyncResult> {
     const { userId } = this.config;
 
@@ -41,25 +37,9 @@ export abstract class CalendarProvider<
       {
         userId,
         localCount: localEvents.length,
-        generation: context.generation,
       },
       "starting sync",
     );
-
-    this.emitStatus({
-      status: "syncing",
-      stage: "fetching",
-      localEventCount: localEvents.length,
-      remoteEventCount: 0,
-      inSync: false,
-    });
-
-    const isLatestSync = await isSyncCurrent(context);
-
-    if (!isLatestSync) {
-      this.childLog.debug({ userId }, "sync superseded before fetch");
-      return { added: 0, removed: 0 };
-    }
 
     const maxEndTime = localEvents.reduce<Date | undefined>(
       (max, event) => (!max || event.endTime > max ? event.endTime : max),
@@ -68,24 +48,10 @@ export abstract class CalendarProvider<
 
     if (!maxEndTime) {
       this.childLog.debug({ userId }, "no local events to sync");
-      await this.persistAndEmitFinalStatus(0, 0);
       return { added: 0, removed: 0 };
     }
 
     const remoteEvents = await this.listRemoteEvents({ until: maxEndTime });
-
-    if (!isLatestSync) {
-      this.childLog.debug({ userId }, "sync superseded after fetch");
-      return { added: 0, removed: 0 };
-    }
-
-    this.emitStatus({
-      status: "syncing",
-      stage: "comparing",
-      localEventCount: localEvents.length,
-      remoteEventCount: remoteEvents.length,
-      inSync: false,
-    });
 
     const operations = this.diffEvents(localEvents, remoteEvents);
     const addCount = operations.filter((op) => op.type === "add").length;
@@ -98,27 +64,10 @@ export abstract class CalendarProvider<
 
     if (operations.length === 0) {
       this.childLog.debug({ userId }, "destination in sync");
-      await this.persistAndEmitFinalStatus(
-        localEvents.length,
-        remoteEvents.length,
-      );
       return { added: 0, removed: 0 };
     }
 
-    const processed = await this.processOperations(operations, {
-      localEventCount: localEvents.length,
-      remoteEventCount: remoteEvents.length,
-      context,
-    });
-
-    if (!(await isSyncCurrent(context))) {
-      this.childLog.debug({ userId }, "sync superseded during processing");
-      return processed;
-    }
-
-    const finalRemoteCount =
-      remoteEvents.length + processed.added - processed.removed;
-    await this.persistAndEmitFinalStatus(localEvents.length, finalRemoteCount);
+    const processed = await this.processOperations(operations);
 
     this.childLog.info(
       { userId, added: processed.added, removed: processed.removed },
@@ -130,38 +79,11 @@ export abstract class CalendarProvider<
 
   private async processOperations(
     operations: SyncOperation[],
-    params: {
-      localEventCount: number;
-      remoteEventCount: number;
-      context: SyncContext;
-    },
   ): Promise<SyncResult> {
-    const total = operations.length;
-    let current = 0;
     let added = 0;
     let removed = 0;
 
     for (const operation of operations) {
-      if (!(await isSyncCurrent(params.context))) {
-        this.childLog.debug("sync superseded, stopping processing");
-        break;
-      }
-
-      const eventTime = this.getOperationEventTime(operation);
-
-      this.emitStatus({
-        status: "syncing",
-        stage: "processing",
-        localEventCount: params.localEventCount,
-        remoteEventCount: params.remoteEventCount,
-        progress: { current, total },
-        lastOperation: {
-          type: operation.type,
-          eventTime: eventTime.toISOString(),
-        },
-        inSync: false,
-      });
-
       if (operation.type === "add") {
         await this.pushEvents([operation.event]);
         added++;
@@ -169,60 +91,9 @@ export abstract class CalendarProvider<
         await this.deleteEvents([operation.uid]);
         removed++;
       }
-
-      current++;
     }
 
     return { added, removed };
-  }
-
-  private getOperationEventTime(operation: SyncOperation): Date {
-    if (operation.type === "add") {
-      return operation.event.startTime;
-    }
-    return operation.startTime;
-  }
-
-  private emitStatus(status: Omit<SyncStatus, "destinationId">): void {
-    emit(this.config.userId, "sync:status", {
-      destinationId: this.config.destinationId,
-      ...status,
-    });
-  }
-
-  private async persistAndEmitFinalStatus(
-    localEventCount: number,
-    remoteEventCount: number,
-  ): Promise<void> {
-    const { destinationId } = this.config;
-    const now = new Date();
-
-    await database
-      .insert(syncStatusTable)
-      .values({
-        destinationId,
-        localEventCount,
-        remoteEventCount,
-        lastSyncedAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [syncStatusTable.destinationId],
-        set: {
-          localEventCount,
-          remoteEventCount,
-          lastSyncedAt: now,
-          updatedAt: now,
-        },
-      });
-
-    this.emitStatus({
-      status: "idle",
-      localEventCount,
-      remoteEventCount,
-      lastSyncedAt: now.toISOString(),
-      inSync: true,
-    });
   }
 
   private diffEvents(

@@ -1,5 +1,6 @@
 import {
   CalendarProvider,
+  type DestinationProvider,
   type SyncableEvent,
   type PushResult,
   type DeleteResult,
@@ -15,13 +16,12 @@ import {
   microsoftApiErrorSchema,
   type OutlookEvent,
 } from "@keeper.sh/data-schemas";
-import { database } from "@keeper.sh/database";
 import {
   oauthCredentialsTable,
   calendarDestinationsTable,
 } from "@keeper.sh/database/schema";
 import { eq } from "drizzle-orm";
-import { refreshAccessToken } from "@keeper.sh/oauth-microsoft";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import { getOutlookAccountsForUser, getUserEvents } from "./sync";
 
 const MICROSOFT_GRAPH_API = "https://graph.microsoft.com/v1.0";
@@ -36,36 +36,47 @@ const isRateLimitError = (error: unknown): boolean => {
   return error.message.includes("429") || error.message.includes("throttled");
 };
 
-export class OutlookCalendarProvider extends CalendarProvider<OutlookCalendarConfig> {
-  readonly name = "Outlook Calendar";
-  readonly id = "outlook";
+export interface OAuthProvider {
+  refreshAccessToken: (refreshToken: string) => Promise<{
+    access_token: string;
+    refresh_token?: string;
+    expires_in: number;
+  }>;
+}
 
-  private currentAccessToken: string;
+export interface OutlookCalendarProviderConfig {
+  database: BunSQLDatabase;
+  oauthProvider: OAuthProvider;
+}
 
-  constructor(config: OutlookCalendarConfig) {
-    super(config);
-    this.currentAccessToken = config.accessToken;
-  }
+export const createOutlookCalendarProvider = (
+  config: OutlookCalendarProviderConfig,
+): DestinationProvider => {
+  const { database, oauthProvider } = config;
 
-  static async syncForUser(
+  const syncForUser = async (
     userId: string,
     context: SyncContext,
-  ): Promise<SyncResult | null> {
-    const outlookAccounts = await getOutlookAccountsForUser(userId);
+  ): Promise<SyncResult | null> => {
+    const outlookAccounts = await getOutlookAccountsForUser(database, userId);
     if (outlookAccounts.length === 0) return null;
 
-    const localEvents = await getUserEvents(userId);
+    const localEvents = await getUserEvents(database, userId);
 
     const results = await Promise.all(
       outlookAccounts.map((account) => {
-        const provider = new OutlookCalendarProvider({
-          destinationId: account.destinationId,
-          userId: account.userId,
-          accountId: account.accountId,
-          accessToken: account.accessToken,
-          refreshToken: account.refreshToken,
-          accessTokenExpiresAt: account.accessTokenExpiresAt,
-        });
+        const provider = new OutlookCalendarProviderInstance(
+          {
+            destinationId: account.destinationId,
+            userId: account.userId,
+            accountId: account.accountId,
+            accessToken: account.accessToken,
+            refreshToken: account.refreshToken,
+            accessTokenExpiresAt: account.accessTokenExpiresAt,
+          },
+          database,
+          oauthProvider,
+        );
         return provider.sync(localEvents, context);
       }),
     );
@@ -77,6 +88,28 @@ export class OutlookCalendarProvider extends CalendarProvider<OutlookCalendarCon
       }),
       { added: 0, removed: 0 },
     );
+  };
+
+  return { syncForUser };
+};
+
+class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarConfig> {
+  readonly name = "Outlook Calendar";
+  readonly id = "outlook";
+
+  private currentAccessToken: string;
+  private database: BunSQLDatabase;
+  private oauthProvider: OAuthProvider;
+
+  constructor(
+    config: OutlookCalendarConfig,
+    database: BunSQLDatabase,
+    oauthProvider: OAuthProvider,
+  ) {
+    super(config);
+    this.currentAccessToken = config.accessToken;
+    this.database = database;
+    this.oauthProvider = oauthProvider;
   }
 
   private get headers(): Record<string, string> {
@@ -95,10 +128,10 @@ export class OutlookCalendarProvider extends CalendarProvider<OutlookCalendarCon
 
     this.childLog.info({ accountId }, "refreshing token");
 
-    const tokenData = await refreshAccessToken(refreshToken);
+    const tokenData = await this.oauthProvider.refreshAccessToken(refreshToken);
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-    const [destination] = await database
+    const [destination] = await this.database
       .select({
         oauthCredentialId: calendarDestinationsTable.oauthCredentialId,
       })
@@ -108,7 +141,7 @@ export class OutlookCalendarProvider extends CalendarProvider<OutlookCalendarCon
 
     if (destination?.oauthCredentialId) {
       this.childLog.debug({ accountId }, "updating database with new token");
-      await database
+      await this.database
         .update(oauthCredentialsTable)
         .set({
           accessToken: tokenData.access_token,

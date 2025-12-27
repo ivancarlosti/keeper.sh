@@ -1,1 +1,1 @@
-export { FastMailProvider, FASTMAIL_SERVER_URL } from "./provider";
+export { createFastMailProvider, FASTMAIL_SERVER_URL } from "./provider";

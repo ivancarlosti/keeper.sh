@@ -21,6 +21,7 @@
     "@keeper.sh/integration-outlook": "workspace:*",
     "@keeper.sh/integrations": "workspace:*",
     "@keeper.sh/oauth-google": "workspace:*",
-    "@keeper.sh/oauth-microsoft": "workspace:*"
+    "@keeper.sh/oauth-microsoft": "workspace:*",
+    "drizzle-orm": "^0.45.1"
   }
 }

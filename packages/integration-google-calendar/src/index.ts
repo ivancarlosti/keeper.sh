@@ -1,4 +1,8 @@
-export { GoogleCalendarProvider } from "./provider";
+export {
+  createGoogleCalendarProvider,
+  type GoogleCalendarProviderConfig,
+  type OAuthProvider,
+} from "./provider";
 export {
   getGoogleAccountsByPlan,
   getGoogleAccountsForUser,

@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@keeper.sh/env": "workspace:*",
-    "@keeper.sh/log": "workspace:*",
     "drizzle-orm": "0.45.1",
     "pg": "8.16.3"
   }

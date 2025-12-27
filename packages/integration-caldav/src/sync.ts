@@ -1,4 +1,3 @@
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   eventStatesTable,
@@ -6,8 +5,8 @@ import {
   caldavCredentialsTable,
 } from "@keeper.sh/database/schema";
 import { decryptPassword } from "@keeper.sh/encryption";
-import env from "@keeper.sh/env/auth";
-import { and, asc, eq, gte, like, or } from "drizzle-orm";
+import { and, asc, eq, gte, or } from "drizzle-orm";
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 import type { SyncableEvent } from "@keeper.sh/integrations";
 
 export interface CalDAVAccount {
@@ -22,128 +21,138 @@ export interface CalDAVAccount {
   encryptedPassword: string;
 }
 
-export const getCalDAVAccountsForUser = async (
-  userId: string,
-  providerFilter?: string,
-): Promise<CalDAVAccount[]> => {
-  const providerCondition = providerFilter
-    ? eq(calendarDestinationsTable.provider, providerFilter)
-    : or(
-        eq(calendarDestinationsTable.provider, "caldav"),
-        eq(calendarDestinationsTable.provider, "fastmail"),
-        eq(calendarDestinationsTable.provider, "icloud"),
+export interface CalDAVConfig {
+  database: BunSQLDatabase;
+  encryptionKey: string;
+}
+
+export interface CalDAVService {
+  getCalDAVAccountsForUser: (
+    userId: string,
+    providerFilter?: string,
+  ) => Promise<CalDAVAccount[]>;
+  getCalDAVAccountsByProvider: (provider: string) => Promise<CalDAVAccount[]>;
+  getDecryptedPassword: (encryptedPassword: string) => string;
+  getUserEvents: (userId: string) => Promise<SyncableEvent[]>;
+}
+
+export const createCalDAVService = (config: CalDAVConfig): CalDAVService => {
+  const { database, encryptionKey } = config;
+
+  const getCalDAVAccountsForUser = async (
+    userId: string,
+    providerFilter?: string,
+  ): Promise<CalDAVAccount[]> => {
+    const providerCondition = providerFilter
+      ? eq(calendarDestinationsTable.provider, providerFilter)
+      : or(
+          eq(calendarDestinationsTable.provider, "caldav"),
+          eq(calendarDestinationsTable.provider, "fastmail"),
+          eq(calendarDestinationsTable.provider, "icloud"),
+        );
+
+    const results = await database
+      .select({
+        destinationId: calendarDestinationsTable.id,
+        userId: calendarDestinationsTable.userId,
+        provider: calendarDestinationsTable.provider,
+        accountId: calendarDestinationsTable.accountId,
+        email: calendarDestinationsTable.email,
+        serverUrl: caldavCredentialsTable.serverUrl,
+        calendarUrl: caldavCredentialsTable.calendarUrl,
+        username: caldavCredentialsTable.username,
+        encryptedPassword: caldavCredentialsTable.encryptedPassword,
+      })
+      .from(calendarDestinationsTable)
+      .innerJoin(
+        caldavCredentialsTable,
+        eq(
+          calendarDestinationsTable.caldavCredentialId,
+          caldavCredentialsTable.id,
+        ),
+      )
+      .where(
+        and(providerCondition, eq(calendarDestinationsTable.userId, userId)),
       );
 
-  const results = await database
-    .select({
-      destinationId: calendarDestinationsTable.id,
-      userId: calendarDestinationsTable.userId,
-      provider: calendarDestinationsTable.provider,
-      accountId: calendarDestinationsTable.accountId,
-      email: calendarDestinationsTable.email,
-      serverUrl: caldavCredentialsTable.serverUrl,
-      calendarUrl: caldavCredentialsTable.calendarUrl,
-      username: caldavCredentialsTable.username,
-      encryptedPassword: caldavCredentialsTable.encryptedPassword,
-    })
-    .from(calendarDestinationsTable)
-    .innerJoin(
-      caldavCredentialsTable,
-      eq(calendarDestinationsTable.caldavCredentialId, caldavCredentialsTable.id),
-    )
-    .where(
-      and(providerCondition, eq(calendarDestinationsTable.userId, userId)),
+    return results;
+  };
+
+  const getCalDAVAccountsByProvider = async (
+    provider: string,
+  ): Promise<CalDAVAccount[]> => {
+    const results = await database
+      .select({
+        destinationId: calendarDestinationsTable.id,
+        userId: calendarDestinationsTable.userId,
+        provider: calendarDestinationsTable.provider,
+        accountId: calendarDestinationsTable.accountId,
+        email: calendarDestinationsTable.email,
+        serverUrl: caldavCredentialsTable.serverUrl,
+        calendarUrl: caldavCredentialsTable.calendarUrl,
+        username: caldavCredentialsTable.username,
+        encryptedPassword: caldavCredentialsTable.encryptedPassword,
+      })
+      .from(calendarDestinationsTable)
+      .innerJoin(
+        caldavCredentialsTable,
+        eq(
+          calendarDestinationsTable.caldavCredentialId,
+          caldavCredentialsTable.id,
+        ),
+      )
+      .where(eq(calendarDestinationsTable.provider, provider));
+
+    return results;
+  };
+
+  const getDecryptedPassword = (encryptedPassword: string): string => {
+    return decryptPassword(encryptedPassword, encryptionKey);
+  };
+
+  const getUserEvents = async (userId: string): Promise<SyncableEvent[]> => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const results = await database
+      .select({
+        id: eventStatesTable.id,
+        startTime: eventStatesTable.startTime,
+        endTime: eventStatesTable.endTime,
+        sourceId: eventStatesTable.sourceId,
+        sourceName: remoteICalSourcesTable.name,
+        sourceUrl: remoteICalSourcesTable.url,
+      })
+      .from(eventStatesTable)
+      .innerJoin(
+        remoteICalSourcesTable,
+        eq(eventStatesTable.sourceId, remoteICalSourcesTable.id),
+      )
+      .where(
+        and(
+          eq(remoteICalSourcesTable.userId, userId),
+          gte(eventStatesTable.startTime, today),
+        ),
+      )
+      .orderBy(asc(eventStatesTable.startTime));
+
+    return results.map(
+      ({ id, startTime, endTime, sourceId, sourceName, sourceUrl }) => ({
+        id,
+        startTime,
+        endTime,
+        sourceId,
+        sourceName,
+        sourceUrl,
+        summary: sourceName ?? "Busy",
+      }),
     );
+  };
 
-  return results.map((r) => ({
-    destinationId: r.destinationId,
-    userId: r.userId,
-    provider: r.provider,
-    accountId: r.accountId,
-    email: r.email,
-    serverUrl: r.serverUrl,
-    calendarUrl: r.calendarUrl,
-    username: r.username,
-    encryptedPassword: r.encryptedPassword,
-  }));
-};
-
-export const getCalDAVAccountsByProvider = async (
-  provider: string,
-): Promise<CalDAVAccount[]> => {
-  const results = await database
-    .select({
-      destinationId: calendarDestinationsTable.id,
-      userId: calendarDestinationsTable.userId,
-      provider: calendarDestinationsTable.provider,
-      accountId: calendarDestinationsTable.accountId,
-      email: calendarDestinationsTable.email,
-      serverUrl: caldavCredentialsTable.serverUrl,
-      calendarUrl: caldavCredentialsTable.calendarUrl,
-      username: caldavCredentialsTable.username,
-      encryptedPassword: caldavCredentialsTable.encryptedPassword,
-    })
-    .from(calendarDestinationsTable)
-    .innerJoin(
-      caldavCredentialsTable,
-      eq(calendarDestinationsTable.caldavCredentialId, caldavCredentialsTable.id),
-    )
-    .where(eq(calendarDestinationsTable.provider, provider));
-
-  return results.map((r) => ({
-    destinationId: r.destinationId,
-    userId: r.userId,
-    provider: r.provider,
-    accountId: r.accountId,
-    email: r.email,
-    serverUrl: r.serverUrl,
-    calendarUrl: r.calendarUrl,
-    username: r.username,
-    encryptedPassword: r.encryptedPassword,
-  }));
-};
-
-export const getDecryptedPassword = (encryptedPassword: string): string => {
-  return decryptPassword(encryptedPassword, env.ENCRYPTION_KEY!);
-};
-
-export const getUserEvents = async (
-  userId: string,
-): Promise<SyncableEvent[]> => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const results = await database
-    .select({
-      id: eventStatesTable.id,
-      startTime: eventStatesTable.startTime,
-      endTime: eventStatesTable.endTime,
-      sourceId: eventStatesTable.sourceId,
-      sourceName: remoteICalSourcesTable.name,
-      sourceUrl: remoteICalSourcesTable.url,
-    })
-    .from(eventStatesTable)
-    .innerJoin(
-      remoteICalSourcesTable,
-      eq(eventStatesTable.sourceId, remoteICalSourcesTable.id),
-    )
-    .where(
-      and(
-        eq(remoteICalSourcesTable.userId, userId),
-        gte(eventStatesTable.startTime, today),
-      ),
-    )
-    .orderBy(asc(eventStatesTable.startTime));
-
-  return results.map(
-    ({ id, startTime, endTime, sourceId, sourceName, sourceUrl }) => ({
-      id,
-      startTime,
-      endTime,
-      sourceId,
-      sourceName,
-      sourceUrl,
-      summary: sourceName ?? "Busy",
-    }),
-  );
+  return {
+    getCalDAVAccountsForUser,
+    getCalDAVAccountsByProvider,
+    getDecryptedPassword,
+    getUserEvents,
+  };
 };

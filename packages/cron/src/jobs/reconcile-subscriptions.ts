@@ -1,9 +1,8 @@
 import type { CronOptions } from "cronbake";
-import { polarClient } from "@keeper.sh/auth";
-import { database } from "@keeper.sh/database";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
 import { user } from "@keeper.sh/database/auth-schema";
 import { log } from "@keeper.sh/log";
+import { database, polarClient } from "../context";
 
 class SubscriptionReconcileError extends Error {
   constructor(

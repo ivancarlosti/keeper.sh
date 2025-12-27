@@ -5,7 +5,12 @@ export {
   syncDestinationsForUser,
   type DestinationProvider,
 } from "./destinations";
-export { type SyncContext } from "./sync-coordinator";
+export {
+  createSyncCoordinator,
+  type SyncContext,
+  type SyncCoordinator,
+  type SyncCoordinatorConfig,
+} from "./sync-coordinator";
 export type {
   SyncableEvent,
   PushResult,

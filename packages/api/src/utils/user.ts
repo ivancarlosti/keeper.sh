@@ -1,6 +1,6 @@
-import { database } from "@keeper.sh/database";
 import { user as userTable } from "@keeper.sh/database";
 import { eq } from "drizzle-orm";
+import { database } from "../context";
 
 /**
  * Resolves a user identifier (username or userId) to a userId.

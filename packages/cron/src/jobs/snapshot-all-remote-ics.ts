@@ -1,5 +1,4 @@
 import type { CronOptions } from "cronbake";
-import { database } from "@keeper.sh/database";
 import {
   remoteICalSourcesTable,
   calendarSnapshotsTable,
@@ -7,6 +6,7 @@ import {
 import { pullRemoteCalendar } from "@keeper.sh/calendar";
 import { log } from "@keeper.sh/log";
 import { and, eq, lte } from "drizzle-orm";
+import { database } from "../context";
 
 class CalendarFetchError extends Error {
   constructor(
