@@ -5,7 +5,7 @@ import Link from "next/link";
 export const HeroSection: FC = () => (
   <section className="flex flex-col gap-2">
     <h1 className="text-4xl font-semibold tracking-tighter leading-tight text-foreground">
-      Simple, open-source <span className="text-nowrap">calendar syncing</span>
+      Simple, open-source calendar syncing
     </h1>
     <p className="text-foreground-secondary leading-relaxed max-w-[48ch]">
       Aggregate events from multiple calendars into one anonymized feed. Push
