@@ -1,21 +1,30 @@
-FROM oven/bun:1 AS build
-
+FROM oven/bun:1 AS foundation
 WORKDIR /app
 
-COPY package.json bun.lock turbo.json ./
-COPY packages ./packages
+FROM foundation AS prepare
+RUN bun install --global turbo
+COPY . .
+RUN turbo prune @keeper.sh/api --docker
 
+FROM foundation AS build
+COPY --from=prepare /app/out/json/ .
 RUN bun install --frozen-lockfile
-RUN bun run --filter=@keeper.sh/api build
 
-FROM oven/bun:1 AS runtime
-WORKDIR /app
+COPY --from=prepare /app/out/full/ .
+RUN bun run build --filter=@keeper.sh/api
 
-COPY --from=build /app/packages/api/dist ./dist
+FROM foundation AS runtime
+RUN bun install --global turbo
+
+COPY --from=prepare /app/out/json/ .
+RUN bun install --frozen-lockfile --production
+
+COPY --from=build /app/turbo.json ./turbo.json
+COPY --from=build /app/packages/api/dist ./packages/api/dist
+COPY --from=build /app/packages/api/package.json ./packages/api/package.json
 COPY --from=build /app/packages/database ./packages/database
-COPY --from=build /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["sh", "-c", "cd packages/database && ./node_modules/.bin/drizzle-kit migrate && cd ../.. && bun run dist/index.js"]
+CMD ["turbo", "migrate", "start"]

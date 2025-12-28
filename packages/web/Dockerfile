@@ -6,10 +6,15 @@ RUN bun install --global turbo
 COPY . .
 RUN turbo prune @keeper.sh/web --docker
 
-FROM foundation AS run
-COPY --from=prepare /app/out/json/ .
+FROM foundation AS runtime
+RUN bun install --global turbo
 
+COPY --from=prepare /app/out/json/ .
 RUN bun install --frozen-lockfile
+
 COPY --from=prepare /app/out/full/ .
 
-CMD ["bun", "start"]
+ENV NODE_ENV=production
+EXPOSE 3000
+
+CMD ["turbo", "build", "start"]

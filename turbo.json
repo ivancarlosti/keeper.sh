@@ -15,7 +15,9 @@
     },
     "start": {
       "passThroughEnv": ["LOG_LEVEL"],
-      "dependsOn": ["build"],
+      "cache": false
+    },
+    "migrate": {
       "cache": false
     }
   }
