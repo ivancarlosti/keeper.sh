@@ -2,12 +2,9 @@ import { log } from "@keeper.sh/log";
 import type { RedisClient } from "bun";
 
 const SYNC_KEY_PREFIX = "sync:generation:";
-const SYNC_LOCK_PREFIX = "sync:lock:";
 const SYNC_TTL_SECONDS = 86400;
-const SYNC_LOCK_TTL_SECONDS = 60;
 
 const getSyncKey = (userId: string): string => `${SYNC_KEY_PREFIX}${userId}`;
-const getSyncLockKey = (userId: string): string => `${SYNC_LOCK_PREFIX}${userId}`;
 
 export interface DestinationSyncResult {
   userId: string;
@@ -34,8 +31,7 @@ export interface SyncProgressUpdate {
 export interface SyncContext {
   userId: string;
   generation: number;
-  acquired: boolean;
-  refreshLock: () => Promise<void>;
+  isCurrent: () => Promise<boolean>;
   onDestinationSync?: (result: DestinationSyncResult) => Promise<void>;
   onSyncProgress?: (update: SyncProgressUpdate) => void;
 }
@@ -56,51 +52,26 @@ export const createSyncCoordinator = (config: SyncCoordinatorConfig): SyncCoordi
   const { redis, onDestinationSync, onSyncProgress } = config;
 
   const startSync = async (userId: string): Promise<SyncContext> => {
-    const lockKey = getSyncLockKey(userId);
-    const genKey = getSyncKey(userId);
-
-    const acquired = await redis.setnx(lockKey, "1");
-
-    const refreshLock = async () => {
-      if (acquired) {
-        await redis.expire(lockKey, SYNC_LOCK_TTL_SECONDS);
-      }
-    };
-
-    if (!acquired) {
-      log.debug({ userId }, "sync already in progress, skipping");
-      return { userId, generation: 0, acquired: false, refreshLock, onDestinationSync, onSyncProgress };
-    }
-
-    await redis.expire(lockKey, SYNC_LOCK_TTL_SECONDS);
-
-    const generation = await redis.incr(genKey);
-    await redis.expire(genKey, SYNC_TTL_SECONDS);
+    const key = getSyncKey(userId);
+    const generation = await redis.incr(key);
+    await redis.expire(key, SYNC_TTL_SECONDS);
 
     log.debug({ userId, generation }, "starting sync generation");
 
-    return { userId, generation, acquired: true, refreshLock, onDestinationSync, onSyncProgress };
+    const isCurrent = async (): Promise<boolean> => {
+      const currentGeneration = await redis.get(key);
+      if (currentGeneration === null) return false;
+      return parseInt(currentGeneration, 10) === generation;
+    };
+
+    return { userId, generation, isCurrent, onDestinationSync, onSyncProgress };
   };
 
   const isSyncCurrent = async (context: SyncContext): Promise<boolean> => {
-    if (!context.acquired) return false;
-
-    const key = getSyncKey(context.userId);
-    const currentGeneration = await redis.get(key);
-
-    if (currentGeneration === null) {
-      return false;
-    }
-
-    return parseInt(currentGeneration, 10) === context.generation;
+    return context.isCurrent();
   };
 
   const endSync = async (context: SyncContext): Promise<void> => {
-    if (!context.acquired) return;
-
-    const lockKey = getSyncLockKey(context.userId);
-    await redis.del(lockKey);
-
     log.debug({ userId: context.userId, generation: context.generation }, "ending sync generation");
   };
 

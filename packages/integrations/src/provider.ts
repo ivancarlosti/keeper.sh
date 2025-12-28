@@ -120,6 +120,11 @@ export abstract class CalendarProvider<
     let currentRemoteCount = params.remoteEventCount;
 
     for (const operation of operations) {
+      if (!(await params.context.isCurrent())) {
+        this.childLog.debug("sync superseded, stopping");
+        break;
+      }
+
       const eventTime = this.getOperationEventTime(operation);
 
       if (operation.type === "add") {
@@ -133,8 +138,6 @@ export abstract class CalendarProvider<
       }
 
       current++;
-
-      await params.context.refreshLock();
 
       this.emitProgress(params.context, {
         stage: "processing",
