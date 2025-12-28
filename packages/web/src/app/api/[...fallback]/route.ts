@@ -13,7 +13,7 @@ type RequestHandler = (request: NextRequest) => Promise<Response>;
  *
  * TODO: Evaluate whether we should just CORS the Bun API directly.
  */
-const forward: RequestHandler = (request) => {
+const forward: RequestHandler = async (request) => {
   const { pathname, search } = new URL(request.url);
 
   if (!env.API_URL) {
@@ -23,15 +23,25 @@ const forward: RequestHandler = (request) => {
   const url = new URL(pathname, env.API_URL);
   url.search = search;
 
-  const headers = new Headers(request.headers);
-  headers.set("Host", url.host);
-  headers.delete("Accept-Encoding");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Host", url.host);
+  requestHeaders.delete("Accept-Encoding");
 
-  return fetch(url.toString(), {
+  const response = await fetch(url.toString(), {
     method: request.method,
     redirect: "manual",
-    headers,
+    headers: requestHeaders,
     ...(request.body && { body: request.body }),
+  });
+
+  const responseHeaders = new Headers(response.headers);
+  responseHeaders.delete("Content-Encoding");
+  responseHeaders.delete("Content-Length");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
   });
 };
 
