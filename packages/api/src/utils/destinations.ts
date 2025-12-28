@@ -2,6 +2,7 @@ import {
   calendarDestinationsTable,
   oauthCredentialsTable,
   caldavCredentialsTable,
+  syncStatusTable,
 } from "@keeper.sh/database/schema";
 import { eq, and } from "drizzle-orm";
 import type { AuthorizationUrlOptions } from "@keeper.sh/destination-providers";
@@ -95,6 +96,11 @@ export const saveCalendarDestination = async (
       .update(calendarDestinationsTable)
       .set({ email })
       .where(eq(calendarDestinationsTable.id, existingDestination.id));
+
+    await database
+      .insert(syncStatusTable)
+      .values({ destinationId: existingDestination.id })
+      .onConflictDoNothing();
   } else {
     const [credential] = await database
       .insert(oauthCredentialsTable)
@@ -109,7 +115,7 @@ export const saveCalendarDestination = async (
       throw new Error("Failed to create OAuth credentials");
     }
 
-    await database
+    const [destination] = await database
       .insert(calendarDestinationsTable)
       .values({
         userId,
@@ -127,7 +133,15 @@ export const saveCalendarDestination = async (
           email,
           oauthCredentialId: credential.id,
         },
-      });
+      })
+      .returning({ id: calendarDestinationsTable.id });
+
+    if (destination) {
+      await database
+        .insert(syncStatusTable)
+        .values({ destinationId: destination.id })
+        .onConflictDoNothing();
+    }
   }
 };
 
@@ -207,6 +221,11 @@ export const saveCalDAVDestination = async (
       .update(calendarDestinationsTable)
       .set({ email })
       .where(eq(calendarDestinationsTable.id, existingDestination.id));
+
+    await database
+      .insert(syncStatusTable)
+      .values({ destinationId: existingDestination.id })
+      .onConflictDoNothing();
   } else {
     const [credential] = await database
       .insert(caldavCredentialsTable)
@@ -222,7 +241,7 @@ export const saveCalDAVDestination = async (
       throw new Error("Failed to create CalDAV credentials");
     }
 
-    await database
+    const [destination] = await database
       .insert(calendarDestinationsTable)
       .values({
         userId,
@@ -240,6 +259,14 @@ export const saveCalDAVDestination = async (
           email,
           caldavCredentialId: credential.id,
         },
-      });
+      })
+      .returning({ id: calendarDestinationsTable.id });
+
+    if (destination) {
+      await database
+        .insert(syncStatusTable)
+        .values({ destinationId: destination.id })
+        .onConflictDoNothing();
+    }
   }
 };
