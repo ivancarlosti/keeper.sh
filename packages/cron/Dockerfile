@@ -20,6 +20,7 @@ COPY --from=prepare /app/out/json/ .
 RUN bun install --frozen-lockfile --production
 
 COPY --from=build /app/turbo.json ./turbo.json
+COPY --from=build /app/packages/cron/turbo.json ./packages/cron/turbo.json
 COPY --from=build /app/packages/cron/dist ./packages/cron/dist
 COPY --from=build /app/packages/cron/package.json ./packages/cron/package.json
 

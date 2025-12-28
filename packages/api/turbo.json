@@ -1,0 +1,48 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "passThroughEnv": [
+        "LOG_LEVEL",
+        "API_PORT",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "BETTER_AUTH_URL",
+        "BETTER_AUTH_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "POLAR_ACCESS_TOKEN",
+        "POLAR_MODE",
+        "RESEND_API_KEY",
+        "PASSKEY_RP_ID",
+        "PASSKEY_RP_NAME",
+        "PASSKEY_ORIGIN",
+        "ENCRYPTION_KEY"
+      ]
+    },
+    "start": {
+      "passThroughEnv": [
+        "LOG_LEVEL",
+        "API_PORT",
+        "DATABASE_URL",
+        "REDIS_URL",
+        "BETTER_AUTH_URL",
+        "BETTER_AUTH_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "POLAR_ACCESS_TOKEN",
+        "POLAR_MODE",
+        "RESEND_API_KEY",
+        "PASSKEY_RP_ID",
+        "PASSKEY_RP_NAME",
+        "PASSKEY_ORIGIN",
+        "ENCRYPTION_KEY"
+      ]
+    }
+  }
+}
