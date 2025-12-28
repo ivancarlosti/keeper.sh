@@ -3,22 +3,6 @@
 # About
 Keeper is a simple & open-source calendar syncing tool. It allows you to pull events from remotely hosted iCal or ICS links, and push them to your main calendar so the time slots can align across all your calendars.
 
-# Stack & Tooling
-
-These are a few of the tools I want to give special mention to for making Keeper an absolute pleasure to build.
-
-- [Next.js 16](https://nextjs.org/) for creating the web interface.
-- [better-auth](https://better-auth.com/) for authentication and user management.
-- [arktype](https://arktype.io/) for lovely data validation.
-- [Polar](https://polar.sh/) for payments, usage and billing.
-- [Drizzle ORM](https://orm.drizzle.team/) for interacting with databases.
-- [Bun](https://bun.com/) for a speedy runtime and package manager.
-- [Turborepo](https://turborepo.com/) for optimizing workflow management.
-- [Docker](https://www.docker.com/) for containerization.
-- [Redis](https://redis.io/) for a fast in-memory data store.
-- [PostgreSQL](https://www.postgresql.org/) for the database.
-- [Knip](https://knip.dev/) for dead code and misconfiguration detection.
-
 # Features
 - Aggregating calendar events from remote sources
 - Event content agnostic syncing engine
