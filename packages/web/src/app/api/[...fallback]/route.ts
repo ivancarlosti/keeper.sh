@@ -25,6 +25,7 @@ const forward: RequestHandler = (request) => {
 
   const headers = new Headers(request.headers);
   headers.set("Host", url.host);
+  headers.delete("Accept-Encoding");
 
   return fetch(url.toString(), {
     method: request.method,
