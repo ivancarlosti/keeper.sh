@@ -17,7 +17,11 @@ const AuthNavSkeleton: FC<AuthNavSkeletonProps> = ({ isDashboard }) => {
     return (
       <nav className="flex gap-2">
         <Button
-          className={button({ variant: "secondary", size: "xs", skeleton: true })}
+          className={button({
+            variant: "secondary",
+            size: "xs",
+            skeleton: true,
+          })}
           disabled
         >
           Logout
@@ -50,7 +54,10 @@ interface DashboardNavProps {
 
 const DashboardNav: FC<DashboardNavProps> = ({ onLogout }) => (
   <nav className="flex gap-2">
-    <Button onClick={onLogout} className={button({ variant: "secondary", size: "xs" })}>
+    <Button
+      onClick={onLogout}
+      className={button({ variant: "secondary", size: "xs" })}
+    >
       Logout
     </Button>
   </nav>
@@ -99,16 +106,8 @@ export const AuthNav: FC = () => {
     router.push("/");
   };
 
-  if (isLoading) {
-    return <AuthNavSkeleton isDashboard={isDashboard} />;
-  }
-
-  if (user) {
-    if (isDashboard) {
-      return <DashboardNav onLogout={handleLogout} />;
-    }
-    return <AuthenticatedMarketingNav />;
-  }
-
-  return <UnauthenticatedNav />;
+  if (isLoading) return <AuthNavSkeleton isDashboard={isDashboard} />;
+  if (!user) return <UnauthenticatedNav />;
+  if (!isDashboard) return <AuthenticatedMarketingNav />;
+  return <DashboardNav onLogout={handleLogout} />;
 };

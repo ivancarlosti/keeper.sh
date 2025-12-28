@@ -4,4 +4,7 @@ import { polarClient } from "@polar-sh/better-auth";
 
 export const authClient = createAuthClient({
   plugins: [passkeyClient(), polarClient()],
+  fetchOptions: {
+    credentials: "include",
+  },
 });
