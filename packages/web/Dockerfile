@@ -1,28 +1,15 @@
-FROM oven/bun:1 AS deps
-
+FROM oven/bun:1 AS foundation
 WORKDIR /app
 
-COPY package.json bun.lock turbo.json ./
-COPY packages ./packages
+FROM foundation AS prepare
+RUN bun install --global turbo
+COPY . .
+RUN turbo prune @keeper.sh/web --docker
+
+FROM foundation AS run
+COPY --from=prepare /app/out/json/ .
 
 RUN bun install --frozen-lockfile
+COPY --from=prepare /app/out/full/ .
 
-FROM oven/bun:1 AS build
-WORKDIR /app
-
-COPY --from=deps /app ./
-
-ENV CI=true
-RUN bun run --filter=@keeper.sh/web build
-
-FROM oven/bun:1-slim AS runtime
-WORKDIR /app
-
-COPY --from=build /app/packages/web/.next/standalone ./
-COPY --from=build /app/packages/web/.next/static ./packages/web/.next/static
-COPY --from=build /app/packages/web/public ./packages/web/public
-
-ENV NODE_ENV=production
-ENV PORT=3000
-EXPOSE 3000
-CMD ["bun", "run", "packages/web/server.js"]
+CMD ["bun", "start"]
