@@ -1,4 +1,5 @@
 export type EventTimeSlot = {
+  uid: string;
   startTime: Date;
   endTime: Date;
 };
@@ -12,10 +13,10 @@ export type EventDiff = {
   toRemove: StoredEventTimeSlot[];
 };
 
-/** JSON-serialized IcsCalendar where Date objects become ISO strings */
 export type SerializedIcsCalendar = {
   version: string;
   events?: Array<{
+    uid?: string;
     start: { date: string };
     end?: { date: string };
     duration?: {

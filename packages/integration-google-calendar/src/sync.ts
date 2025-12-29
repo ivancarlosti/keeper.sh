@@ -112,6 +112,7 @@ export const getUserEvents = async (
   const results = await database
     .select({
       id: eventStatesTable.id,
+      sourceEventUid: eventStatesTable.sourceEventUid,
       startTime: eventStatesTable.startTime,
       endTime: eventStatesTable.endTime,
       sourceId: eventStatesTable.sourceId,
@@ -131,14 +132,23 @@ export const getUserEvents = async (
     )
     .orderBy(asc(eventStatesTable.startTime));
 
-  return results.map(({ id, startTime, endTime, sourceId, sourceName, sourceUrl }) => ({
-    id,
-    startTime,
-    endTime,
-    sourceId,
-    sourceName,
-    sourceUrl,
-    summary: sourceName ?? "Busy",
-  }));
+  const events: SyncableEvent[] = [];
+
+  for (const result of results) {
+    if (result.sourceEventUid === null) continue;
+
+    events.push({
+      id: result.id,
+      sourceEventUid: result.sourceEventUid,
+      startTime: result.startTime,
+      endTime: result.endTime,
+      sourceId: result.sourceId,
+      sourceName: result.sourceName,
+      sourceUrl: result.sourceUrl,
+      summary: result.sourceName ?? "Busy",
+    });
+  }
+
+  return events;
 };
 

@@ -40,6 +40,7 @@ export const parseICalToRemoteEvent = (
 
   return {
     uid: event.uid,
+    deleteId: event.uid,
     startTime: new Date(event.start.date),
     endTime: new Date(event.end.date),
   };

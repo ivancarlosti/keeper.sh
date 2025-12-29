@@ -37,11 +37,20 @@ export const eventStatesTable = pgTable(
     sourceId: uuid()
       .notNull()
       .references(() => remoteICalSourcesTable.id, { onDelete: "cascade" }),
+    sourceEventUid: text(),
     startTime: timestamp().notNull(),
     endTime: timestamp().notNull(),
     createdAt: timestamp().notNull().defaultNow(),
   },
-  (table) => [index("event_states_start_time_idx").on(table.startTime)],
+  (table) => [
+    index("event_states_start_time_idx").on(table.startTime),
+    uniqueIndex("event_states_identity_idx").on(
+      table.sourceId,
+      table.sourceEventUid,
+      table.startTime,
+      table.endTime,
+    ),
+  ],
 );
 
 export const userSubscriptionsTable = pgTable("user_subscriptions", {
@@ -114,5 +123,30 @@ export const syncStatusTable = pgTable(
   },
   (table) => [
     uniqueIndex("sync_status_destination_idx").on(table.destinationId),
+  ],
+);
+
+export const eventMappingsTable = pgTable(
+  "event_mappings",
+  {
+    id: uuid().notNull().primaryKey().defaultRandom(),
+    eventStateId: uuid()
+      .notNull()
+      .references(() => eventStatesTable.id, { onDelete: "cascade" }),
+    destinationId: uuid()
+      .notNull()
+      .references(() => calendarDestinationsTable.id, { onDelete: "cascade" }),
+    destinationEventUid: text().notNull(),
+    deleteIdentifier: text(),
+    startTime: timestamp().notNull(),
+    endTime: timestamp().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("event_mappings_event_dest_idx").on(
+      table.eventStateId,
+      table.destinationId,
+    ),
+    index("event_mappings_destination_idx").on(table.destinationId),
   ],
 );

@@ -67,6 +67,7 @@ export const createOutlookCalendarProvider = (
       outlookAccounts.map((account) => {
         const provider = new OutlookCalendarProviderInstance(
           {
+            database,
             destinationId: account.destinationId,
             userId: account.userId,
             accountId: account.accountId,
@@ -74,7 +75,6 @@ export const createOutlookCalendarProvider = (
             refreshToken: account.refreshToken,
             accessTokenExpiresAt: account.accessTokenExpiresAt,
           },
-          database,
           oauthProvider,
         );
         return provider.sync(localEvents, context);
@@ -98,17 +98,11 @@ class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarCo
   readonly id = "outlook";
 
   private currentAccessToken: string;
-  private database: BunSQLDatabase;
   private oauthProvider: OAuthProvider;
 
-  constructor(
-    config: OutlookCalendarConfig,
-    database: BunSQLDatabase,
-    oauthProvider: OAuthProvider,
-  ) {
+  constructor(config: OutlookCalendarConfig, oauthProvider: OAuthProvider) {
     super(config);
     this.currentAccessToken = config.accessToken;
-    this.database = database;
     this.oauthProvider = oauthProvider;
   }
 
@@ -120,7 +114,8 @@ class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarCo
   }
 
   private async ensureValidToken(): Promise<void> {
-    const { accessTokenExpiresAt, refreshToken, accountId } = this.config;
+    const { database, accessTokenExpiresAt, refreshToken, accountId, destinationId } =
+      this.config;
 
     if (accessTokenExpiresAt.getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
       return;
@@ -131,17 +126,17 @@ class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarCo
     const tokenData = await this.oauthProvider.refreshAccessToken(refreshToken);
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
-    const [destination] = await this.database
+    const [destination] = await database
       .select({
         oauthCredentialId: calendarDestinationsTable.oauthCredentialId,
       })
       .from(calendarDestinationsTable)
-      .where(eq(calendarDestinationsTable.id, this.config.destinationId))
+      .where(eq(calendarDestinationsTable.id, destinationId))
       .limit(1);
 
     if (destination?.oauthCredentialId) {
       this.childLog.debug({ accountId }, "updating database with new token");
-      await this.database
+      await database
         .update(oauthCredentialsTable)
         .set({
           accessToken: tokenData.access_token,
@@ -254,8 +249,13 @@ class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarCo
         const startTime = this.parseEventTime(event.start);
         const endTime = this.parseEventTime(event.end);
 
-        if (event.id && startTime && endTime) {
-          remoteEvents.push({ uid: event.id, startTime, endTime });
+        if (event.id && event.iCalUId && startTime && endTime) {
+          remoteEvents.push({
+            uid: event.iCalUId,
+            deleteId: event.id,
+            startTime,
+            endTime,
+          });
         }
       }
 
@@ -303,9 +303,9 @@ class OutlookCalendarProviderInstance extends CalendarProvider<OutlookCalendarCo
     }
 
     const body = await response.json();
-    const { id: remoteId } = outlookEventSchema.assert(body);
-    this.childLog.debug({ remoteId }, "event created");
-    return { success: true, remoteId };
+    const event = outlookEventSchema.assert(body);
+    this.childLog.debug({ remoteId: event.iCalUId }, "event created");
+    return { success: true, remoteId: event.iCalUId, deleteId: event.id };
   }
 
   private async deleteEvent(eventId: string): Promise<DeleteResult> {

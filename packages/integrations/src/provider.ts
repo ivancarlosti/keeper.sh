@@ -6,9 +6,14 @@ import type {
   RemoteEvent,
   ProviderConfig,
   SyncOperation,
-  SlotOperations,
   ListRemoteEventsOptions,
 } from "./types";
+import {
+  getEventMappingsForDestination,
+  createEventMapping,
+  deleteEventMappingByDestinationUid,
+  type EventMapping,
+} from "./mappings";
 import { generateEventUid, isKeeperEvent } from "./event-identity";
 import type { SyncContext, SyncStage } from "./sync-coordinator";
 import { log } from "@keeper.sh/log";
@@ -33,13 +38,10 @@ export abstract class CalendarProvider<
     localEvents: SyncableEvent[],
     context: SyncContext,
   ): Promise<SyncResult> {
-    const { userId, destinationId } = this.config;
+    const { database, userId, destinationId } = this.config;
 
     this.childLog.debug(
-      {
-        userId,
-        localCount: localEvents.length,
-      },
+      { userId, localCount: localEvents.length },
       "starting sync",
     );
 
@@ -49,12 +51,10 @@ export abstract class CalendarProvider<
       remoteEventCount: 0,
     });
 
-    const maxEndTime = localEvents.reduce<Date>(
-      (max, event) => (event.endTime > max ? event.endTime : max),
-      new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
-    );
-
-    const remoteEvents = await this.listRemoteEvents({ until: maxEndTime });
+    const [existingMappings, remoteEvents] = await Promise.all([
+      getEventMappingsForDestination(database, destinationId),
+      this.listRemoteEvents({ until: this.getTenYearsFromNow() }),
+    ]);
 
     this.emitProgress(context, {
       stage: "comparing",
@@ -62,7 +62,11 @@ export abstract class CalendarProvider<
       remoteEventCount: remoteEvents.length,
     });
 
-    const operations = this.diffEvents(localEvents, remoteEvents);
+    const operations = this.computeSyncOperations(
+      localEvents,
+      existingMappings,
+      remoteEvents,
+    );
     const addCount = operations.filter((op) => op.type === "add").length;
     const removeCount = operations.filter((op) => op.type === "remove").length;
 
@@ -88,7 +92,8 @@ export abstract class CalendarProvider<
       remoteEventCount: remoteEvents.length,
     });
 
-    const finalRemoteCount = remoteEvents.length + processed.added - processed.removed;
+    const finalRemoteCount =
+      remoteEvents.length + processed.added - processed.removed;
     await context.onDestinationSync?.({
       userId,
       destinationId,
@@ -105,6 +110,58 @@ export abstract class CalendarProvider<
     return processed;
   }
 
+  private computeSyncOperations(
+    localEvents: SyncableEvent[],
+    existingMappings: EventMapping[],
+    remoteEvents: RemoteEvent[],
+  ): SyncOperation[] {
+    const localEventIds = new Set(localEvents.map((event) => event.id));
+    const mappedEventIds = new Set(existingMappings.map((m) => m.eventStateId));
+    const mappedDestinationUids = new Set(
+      existingMappings.map(({ destinationEventUid }) => destinationEventUid),
+    );
+
+    const operations: SyncOperation[] = [];
+
+    for (const event of localEvents) {
+      if (!mappedEventIds.has(event.id)) {
+        operations.push({ type: "add", event });
+      }
+    }
+
+    for (const mapping of existingMappings) {
+      if (!localEventIds.has(mapping.eventStateId)) {
+        operations.push({
+          type: "remove",
+          uid: mapping.destinationEventUid,
+          deleteId: mapping.deleteIdentifier,
+          startTime: mapping.startTime,
+        });
+      }
+    }
+
+    for (const remoteEvent of remoteEvents) {
+      if (!mappedDestinationUids.has(remoteEvent.uid)) {
+        operations.push({
+          type: "remove",
+          uid: remoteEvent.uid,
+          deleteId: remoteEvent.deleteId,
+          startTime: remoteEvent.startTime,
+        });
+      }
+    }
+
+    return this.sortOperationsByTime(operations);
+  }
+
+  private sortOperationsByTime(operations: SyncOperation[]): SyncOperation[] {
+    return operations.sort((first, second) => {
+      const firstTime = this.getOperationEventTime(first).getTime();
+      const secondTime = this.getOperationEventTime(second).getTime();
+      return firstTime - secondTime;
+    });
+  }
+
   private async processOperations(
     operations: SyncOperation[],
     params: {
@@ -113,6 +170,7 @@ export abstract class CalendarProvider<
       remoteEventCount: number;
     },
   ): Promise<SyncResult> {
+    const { database, destinationId } = this.config;
     const total = operations.length;
     let current = 0;
     let added = 0;
@@ -128,13 +186,30 @@ export abstract class CalendarProvider<
       const eventTime = this.getOperationEventTime(operation);
 
       if (operation.type === "add") {
-        await this.pushEvents([operation.event]);
-        added++;
-        currentRemoteCount++;
+        const [result] = await this.pushEvents([operation.event]);
+        if (result?.success && result.remoteId) {
+          await createEventMapping(database, {
+            eventStateId: operation.event.id,
+            destinationId,
+            destinationEventUid: result.remoteId,
+            deleteIdentifier: result.deleteId,
+            startTime: operation.event.startTime,
+            endTime: operation.event.endTime,
+          });
+          added++;
+          currentRemoteCount++;
+        }
       } else {
-        await this.deleteEvents([operation.uid]);
-        removed++;
-        currentRemoteCount--;
+        const [result] = await this.deleteEvents([operation.deleteId]);
+        if (result?.success) {
+          await deleteEventMappingByDestinationUid(
+            database,
+            destinationId,
+            operation.uid,
+          );
+          removed++;
+          currentRemoteCount--;
+        }
       }
 
       current++;
@@ -169,6 +244,12 @@ export abstract class CalendarProvider<
     return operation.startTime;
   }
 
+  private getTenYearsFromNow(): Date {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() + 10);
+    return date;
+  }
+
   private emitProgress(
     context: SyncContext,
     params: {
@@ -190,70 +271,6 @@ export abstract class CalendarProvider<
       lastOperation: params.lastOperation,
       inSync: false,
     });
-  }
-
-  private diffEvents(
-    localEvents: SyncableEvent[],
-    remoteEvents: RemoteEvent[],
-  ): SyncOperation[] {
-    const timeKey = (start: Date, end: Date) =>
-      `${start.getTime()}:${end.getTime()}`;
-
-    const localBySlot = new Map<string, SyncableEvent[]>();
-    for (const event of localEvents) {
-      const key = timeKey(event.startTime, event.endTime);
-      const slotEvents = localBySlot.get(key) ?? [];
-      slotEvents.push(event);
-      localBySlot.set(key, slotEvents);
-    }
-
-    const remoteBySlot = new Map<string, RemoteEvent[]>();
-    for (const event of remoteEvents) {
-      const key = timeKey(event.startTime, event.endTime);
-      const slotEvents = remoteBySlot.get(key) ?? [];
-      slotEvents.push(event);
-      remoteBySlot.set(key, slotEvents);
-    }
-
-    const allSlots = new Set([...localBySlot.keys(), ...remoteBySlot.keys()]);
-    const slotOperations: SlotOperations[] = [];
-
-    for (const slot of allSlots) {
-      const localSlotEvents = localBySlot.get(slot) ?? [];
-      const remoteSlotEvents = remoteBySlot.get(slot) ?? [];
-
-      const [localSlotEvent] = localSlotEvents;
-      const [remoteSlotEvent] = remoteSlotEvents;
-
-      const operations: SyncOperation[] = [];
-
-      const startTime = localSlotEvent?.startTime ?? remoteSlotEvent?.startTime;
-      if (!startTime) continue;
-
-      const diff = localSlotEvents.length - remoteSlotEvents.length;
-
-      if (diff > 0) {
-        for (const event of localSlotEvents.slice(0, diff)) {
-          operations.push({ type: "add", event });
-        }
-      } else if (diff < 0) {
-        const surplus = -diff;
-        for (const event of remoteSlotEvents.slice(0, surplus)) {
-          operations.push({
-            type: "remove",
-            uid: event.uid,
-            startTime: event.startTime,
-          });
-        }
-      }
-
-      if (operations.length > 0) {
-        slotOperations.push({ startTime: startTime.getTime(), operations });
-      }
-    }
-
-    slotOperations.sort((first, second) => first.startTime - second.startTime);
-    return slotOperations.flatMap((slot) => slot.operations);
   }
 
   protected generateUid(): string {

@@ -40,9 +40,11 @@ export const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
 
   for (const event of calendar.events ?? []) {
     if (isKeeperEvent(event.uid)) continue;
+    if (!event.uid) continue;
 
     const startTime = event.start.date;
     result.push({
+      uid: event.uid,
       startTime,
       endTime: getEventEndTime(event, startTime),
     });

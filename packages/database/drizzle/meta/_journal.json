@@ -169,6 +169,27 @@
       "when": 1766748640212,
       "tag": "0023_lyrical_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1766967778649,
+      "tag": "0024_aberrant_wallop",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1766986355666,
+      "tag": "0025_powerful_sentinels",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1766991110661,
+      "tag": "0026_typical_impossible_man",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,8 @@
+import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
+
 export interface SyncableEvent {
   id: string;
+  sourceEventUid: string;
   startTime: Date;
   endTime: Date;
   summary: string;
@@ -12,6 +15,7 @@ export interface SyncableEvent {
 export interface PushResult {
   success: boolean;
   remoteId?: string;
+  deleteId?: string;
   error?: string;
 }
 
@@ -27,24 +31,21 @@ export interface SyncResult {
 
 export interface RemoteEvent {
   uid: string;
+  deleteId: string;
   startTime: Date;
   endTime: Date;
 }
 
 export type SyncOperation =
   | { type: "add"; event: SyncableEvent }
-  | { type: "remove"; uid: string; startTime: Date };
-
-export interface SlotOperations {
-  startTime: number;
-  operations: SyncOperation[];
-}
+  | { type: "remove"; uid: string; deleteId: string; startTime: Date };
 
 export interface ListRemoteEventsOptions {
   until: Date;
 }
 
 export interface ProviderConfig {
+  database: BunSQLDatabase;
   userId: string;
   destinationId: string;
 }

@@ -2,6 +2,8 @@ import {
   remoteICalSourcesTable,
   eventStatesTable,
   calendarSnapshotsTable,
+  calendarDestinationsTable,
+  eventMappingsTable,
 } from "@keeper.sh/database/schema";
 import { convertIcsCalendar } from "ts-ics";
 import { log } from "@keeper.sh/log";
@@ -12,7 +14,10 @@ import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
 export type Source = typeof remoteICalSourcesTable.$inferSelect;
 
-const getLatestSnapshot = async (database: BunSQLDatabase, sourceId: string) => {
+const getLatestSnapshot = async (
+  database: BunSQLDatabase,
+  sourceId: string,
+) => {
   const [snapshot] = await database
     .select({ ical: calendarSnapshotsTable.ical })
     .from(calendarSnapshotsTable)
@@ -28,6 +33,7 @@ const getStoredEvents = async (database: BunSQLDatabase, sourceId: string) => {
   return database
     .select({
       id: eventStatesTable.id,
+      uid: eventStatesTable.sourceEventUid,
       startTime: eventStatesTable.startTime,
       endTime: eventStatesTable.endTime,
     })
@@ -35,31 +41,89 @@ const getStoredEvents = async (database: BunSQLDatabase, sourceId: string) => {
     .where(eq(eventStatesTable.sourceId, sourceId));
 };
 
+const getUserMappedDestinationUids = async (
+  database: BunSQLDatabase,
+  userId: string,
+): Promise<Set<string>> => {
+  const results = await database
+    .select({ destinationEventUid: eventMappingsTable.destinationEventUid })
+    .from(eventMappingsTable)
+    .innerJoin(
+      calendarDestinationsTable,
+      eq(eventMappingsTable.destinationId, calendarDestinationsTable.id),
+    )
+    .where(eq(calendarDestinationsTable.userId, userId));
+
+  return new Set(
+    results.map(({ destinationEventUid }) => destinationEventUid),
+  );
+};
+
 const removeEvents = async (
   database: BunSQLDatabase,
   sourceId: string,
-  eventIds: string[],
+  events: { id: string; startTime: Date; endTime: Date }[],
 ) => {
+  const eventIds = events.map(({ id }) => id);
+
   await database
     .delete(eventStatesTable)
     .where(inArray(eventStatesTable.id, eventIds));
 
-  log.debug("removed %s events from source '%s'", eventIds.length, sourceId);
+  for (const event of events) {
+    log.debug(
+      "removed event from source '%s': %s - %s",
+      sourceId,
+      event.startTime.toISOString(),
+      event.endTime.toISOString(),
+    );
+  }
 };
 
 const addEvents = async (
   database: BunSQLDatabase,
   sourceId: string,
-  events: { startTime: Date; endTime: Date }[],
+  events: { uid: string; startTime: Date; endTime: Date }[],
 ) => {
   const rows = events.map((event) => ({
     sourceId,
+    sourceEventUid: event.uid,
     startTime: event.startTime,
     endTime: event.endTime,
   }));
 
   await database.insert(eventStatesTable).values(rows);
-  log.debug("added %s events to source '%s'", events.length, sourceId);
+
+  for (const event of events) {
+    log.debug(
+      "added event to source '%s': %s - %s",
+      sourceId,
+      event.startTime.toISOString(),
+      event.endTime.toISOString(),
+    );
+  }
+};
+
+type StoredEvent = Awaited<ReturnType<typeof getStoredEvents>>[number];
+type StoredEventWithUid = StoredEvent & { uid: string };
+
+const hasUid = (event: StoredEvent): event is StoredEventWithUid => {
+  return event.uid !== null;
+};
+
+const partitionStoredEvents = (events: StoredEvent[]) => {
+  const legacyEvents: StoredEvent[] = [];
+  const eventsWithUid: StoredEventWithUid[] = [];
+
+  for (const event of events) {
+    if (hasUid(event)) {
+      eventsWithUid.push(event);
+    } else {
+      legacyEvents.push(event);
+    }
+  }
+
+  return { legacyEvents, eventsWithUid };
 };
 
 export async function syncSourceFromSnapshot(
@@ -75,20 +139,30 @@ export async function syncSourceFromSnapshot(
     return;
   }
 
-  const remoteEvents = parseIcsEvents(icsCalendar);
-  const storedEvents = await getStoredEvents(database, source.id);
-  const { toAdd, toRemove } = diffEvents(remoteEvents, storedEvents);
+  const [parsedEvents, mappedUids, storedEvents] = await Promise.all([
+    Promise.resolve(parseIcsEvents(icsCalendar)),
+    getUserMappedDestinationUids(database, source.userId),
+    getStoredEvents(database, source.id),
+  ]);
 
-  if (toRemove.length > 0) {
-    const eventIds = toRemove.map((event) => event.id);
-    await removeEvents(database, source.id, eventIds);
+  const remoteEvents = parsedEvents.filter(
+    (event) => !mappedUids.has(event.uid),
+  );
+
+  const { legacyEvents, eventsWithUid } = partitionStoredEvents(storedEvents);
+  const { toAdd, toRemove } = diffEvents(remoteEvents, eventsWithUid);
+
+  const eventsToRemove = [...legacyEvents, ...toRemove];
+
+  if (eventsToRemove.length > 0) {
+    await removeEvents(database, source.id, eventsToRemove);
   }
 
   if (toAdd.length > 0) {
     await addEvents(database, source.id, toAdd);
   }
 
-  if (toAdd.length === 0 && toRemove.length === 0) {
+  if (toAdd.length === 0 && eventsToRemove.length === 0) {
     log.debug("source '%s' is in sync", source.id);
   }
 

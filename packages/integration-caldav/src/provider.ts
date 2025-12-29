@@ -48,6 +48,7 @@ export const createCalDAVProvider = (
         const password = caldavService.getDecryptedPassword(account.encryptedPassword);
         const provider = new CalDAVProviderInstance(
           {
+            database: config.database,
             destinationId: account.destinationId,
             userId: account.userId,
             serverUrl: account.serverUrl,

@@ -31,10 +31,14 @@ I've probably tried it. It was probably too finicky, ended up making me waste ho
 
 ## How does the syncing engine work?
 
-Simply. It compares timeslots from the aggregate events of all your sources to events Keeper has created on the destination calendar, as identified by the `@keeper.sh` suffix on the event's remote UID. Keeper simply ensures that the correct number of events exist at any given timeslot.
+- If we have a local event but no corresponding "source → destination" mapping for an event, we push the event to the destination calendar.
+- If we have a mapping for an event, but the source ID is not present on the source any longer, we delete the event from the destination.
+- Any events with markers of having been created by Keeper, but with no corresponding local tracking, we remove it. This is only done for backwards compatibility.
+
+Events are flagged as having been created by Keeper either using a `@keeper.sh` suffix on the remote UID, or in the case of a platform like Outlook that doesn't support custom UIDs, we just put it in a `"keeper.sh"` category.
 
 # Considerations
-1. **Keeper is timeslot first**, it does not consider nor does it sync summaries, descriptions, etc., if you need that I would recommend [OneCal](https://onecal.io/).
+1. **Keeper tracks timeslots, not event details**, summaries, descriptions, etc., for now. If you need that I would recommend [OneCal](https://onecal.io/).
 2. **Keeper only sources from remote and publicly available iCal/ICS URLs** at the moment, so that means that if your security policy does not permit these, another solution may suit you better.
 
 # Cloud Hosted

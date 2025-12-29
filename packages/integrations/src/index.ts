@@ -14,6 +14,12 @@ export {
   type SyncProgressUpdate,
   type SyncStage,
 } from "./sync-coordinator";
+export {
+  getEventMappingsForDestination,
+  createEventMapping,
+  deleteEventMapping,
+  type EventMapping,
+} from "./mappings";
 export type {
   SyncableEvent,
   PushResult,

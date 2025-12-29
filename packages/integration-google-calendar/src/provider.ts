@@ -62,6 +62,7 @@ export const createGoogleCalendarProvider = (
       googleAccounts.map((account) => {
         const provider = new GoogleCalendarProviderInstance(
           {
+            database,
             destinationId: account.destinationId,
             userId: account.userId,
             accountId: account.accountId,
@@ -70,7 +71,6 @@ export const createGoogleCalendarProvider = (
             accessTokenExpiresAt: account.accessTokenExpiresAt,
             calendarId: "primary",
           },
-          database,
           oauthProvider,
         );
         return provider.sync(localEvents, context);
@@ -95,18 +95,12 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
 
   private currentAccessToken: string;
   private rateLimiter: RateLimiter;
-  private database: BunSQLDatabase;
   private oauthProvider: OAuthProvider;
 
-  constructor(
-    config: GoogleCalendarConfig,
-    database: BunSQLDatabase,
-    oauthProvider: OAuthProvider,
-  ) {
+  constructor(config: GoogleCalendarConfig, oauthProvider: OAuthProvider) {
     super(config);
     this.currentAccessToken = config.accessToken;
     this.rateLimiter = new RateLimiter(10);
-    this.database = database;
     this.oauthProvider = oauthProvider;
   }
 
@@ -118,7 +112,7 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
   }
 
   private async ensureValidToken(): Promise<void> {
-    const { accessTokenExpiresAt, refreshToken, accountId } = this.config;
+    const { database, accessTokenExpiresAt, refreshToken, accountId } = this.config;
 
     if (accessTokenExpiresAt.getTime() > Date.now() + TOKEN_REFRESH_BUFFER_MS) {
       return;
@@ -130,7 +124,7 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
     const newExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
 
     this.childLog.debug({ accountId }, "updating database with new token");
-    const [destination] = await this.database
+    const [destination] = await database
       .select({
         oauthCredentialId: calendarDestinationsTable.oauthCredentialId,
       })
@@ -139,7 +133,7 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
       .limit(1);
 
     if (destination?.oauthCredentialId) {
-      await this.database
+      await database
         .update(oauthCredentialsTable)
         .set({
           accessToken: tokenData.access_token,
@@ -254,7 +248,12 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
           const endTime = this.parseEventTime(event.end);
 
           if (startTime && endTime) {
-            remoteEvents.push({ uid: event.iCalUID, startTime, endTime });
+            remoteEvents.push({
+              uid: event.iCalUID,
+              deleteId: event.iCalUID,
+              startTime,
+              endTime,
+            });
           }
         }
       }
@@ -272,7 +271,11 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
 
     try {
       this.childLog.debug({ uid }, "creating event");
-      return this.createEvent(resource);
+      const result = await this.createEvent(resource);
+      if (result.success) {
+        return { success: true, remoteId: uid };
+      }
+      return result;
     } catch (error) {
       this.childLog.error({ error, uid }, "failed to push event");
       return { success: false, error: "Failed to push event" };
@@ -304,10 +307,9 @@ class GoogleCalendarProviderInstance extends CalendarProvider<GoogleCalendarConf
       };
     }
 
-    const body = await response.json();
-    const { id: remoteId } = googleEventSchema.assert(body);
-    this.childLog.debug({ remoteId }, "event created");
-    return { success: true, remoteId };
+    await response.json();
+    this.childLog.debug("event created");
+    return { success: true };
   }
 
   private async deleteEvent(uid: string): Promise<DeleteResult> {

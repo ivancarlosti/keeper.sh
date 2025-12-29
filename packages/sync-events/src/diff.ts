@@ -40,9 +40,11 @@ export const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
 
   for (const event of calendar.events ?? []) {
     if (isKeeperEvent(event.uid)) continue;
+    if (!event.uid) continue;
 
     const startTime = event.start.date;
     result.push({
+      uid: event.uid,
       startTime,
       endTime: getEventEndTime(event, startTime),
     });
@@ -51,56 +53,35 @@ export const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
   return result;
 };
 
-const timeSlotKey = (slot: EventTimeSlot): string =>
-  `${slot.startTime.getTime()}:${slot.endTime.getTime()}`;
+const eventIdentityKey = (event: EventTimeSlot): string =>
+  `${event.uid}:${event.startTime.getTime()}:${event.endTime.getTime()}`;
 
 export const diffEvents = (
   remote: EventTimeSlot[],
   stored: StoredEventTimeSlot[],
 ): EventDiff => {
-  const remoteCounts = new Map<string, number>();
+  const remoteByKey = new Map<string, EventTimeSlot>();
   for (const event of remote) {
-    const key = timeSlotKey(event);
-    remoteCounts.set(key, (remoteCounts.get(key) ?? 0) + 1);
+    remoteByKey.set(eventIdentityKey(event), event);
   }
 
-  const storedCounts = new Map<string, number>();
-  const storedByKey = new Map<string, StoredEventTimeSlot[]>();
+  const storedByKey = new Map<string, StoredEventTimeSlot>();
   for (const event of stored) {
-    const key = timeSlotKey(event);
-    storedCounts.set(key, (storedCounts.get(key) ?? 0) + 1);
-    const existing = storedByKey.get(key) ?? [];
-    existing.push(event);
-    storedByKey.set(key, existing);
+    storedByKey.set(eventIdentityKey(event), event);
   }
 
   const toAdd: EventTimeSlot[] = [];
   const toRemove: StoredEventTimeSlot[] = [];
 
-  for (const event of remote) {
-    const key = timeSlotKey(event);
-    const remoteCount = remoteCounts.get(key) ?? 0;
-    const storedCount = storedCounts.get(key) ?? 0;
-
-    if (remoteCount > storedCount) {
-      const diff = remoteCount - storedCount;
-      for (let i = 0; i < diff; i++) {
-        toAdd.push(event);
-      }
-      remoteCounts.set(key, storedCount);
+  for (const [key, event] of remoteByKey) {
+    if (!storedByKey.has(key)) {
+      toAdd.push(event);
     }
   }
 
-  for (const [key, events] of storedByKey) {
-    const remoteCount = remoteCounts.get(key) ?? 0;
-    const storedCount = storedCounts.get(key) ?? 0;
-
-    if (storedCount > remoteCount) {
-      const diff = storedCount - remoteCount;
-      for (let i = 0; i < diff; i++) {
-        const event = events[i];
-        if (event) toRemove.push(event);
-      }
+  for (const [key, event] of storedByKey) {
+    if (!remoteByKey.has(key)) {
+      toRemove.push(event);
     }
   }
 
