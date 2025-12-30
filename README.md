@@ -64,31 +64,33 @@ There are five images currently available, two of them are designed for convenie
 
 ## Environment Variables
 
-| Name | Required | Description |
-| - | - | - |
-| BETTER_AUTH_URL | `true` | This should be equivalent to the base URL of the front-end, the same you use to navigate to the website on a browser. Next.js will proxy  |
-| API_URL | `false` | The URL you use to connect to the Bun API, which is hosted on port `3001` by default. This value will be used to construct the WebSocket URL for the front-end to connect to. Do note that if this is unset, we default to the same origin as Next.js. You can leave this unset _only if_ you have a reverse-proxy set to route requests to the Bun API. See an example of this in [this Caddyfile](./packages/standalone/rootfs/etc/caddy/Caddyfile) |
-| REDIS_URL | `true` | The URL that the API and Redis services will use to connect to Redis |
-| DATABASE_URL | `true` | The URL that the API and Redis services will use to connect to PostgreSQL |
-| GOOGLE_CLIENT_ID | `false` | If you want to use Google OAuth, you must configure this. Reference instructions below. |
-| GOOGLE_CLIENT_SECRET | `false` | If you want to use Google OAuth, you must configure this. Reference instructions below. |
-| MICROSOFT_CLIENT_ID | `false` | If you want to use Microsoft OAuth, you must configure this. Reference instructions below. |
-| MICROSOFT_CLIENT_SECRET | `false` | If you want to use Microsoft OAuth, you must configure this. Reference instructions below. |
+| Name | Service(s) | Description | Example(s) |
+| - | - | - | - |
+| DATABASE_URL | `api`, `cron` | PostgreSQL connection URL. | `postgres://user:pass@postgres:5432/keeper` |
+| REDIS_URL | `api`, `cron` | Redis connection URL. | `redis://redis:6379` |
+| WEBSOCKET_URL | `api` | The URL the front-end will attempt to connect to the WebSocket using. | `ws://localhost:3001/api/socket` |
+| BETTER_AUTH_URL | `api` | The base URL of the front-end (used for auth redirects). | `http://localhost:3000` |
+| BETTER_AUTH_SECRET | `api` | Secret key for session signing. | `openssl rand -base64 32` |
+| API_URL | `web` | The URL the Next.js backend uses to proxy requests to the Bun API. | `http://api:3001` |
+| ENCRYPTION_KEY | `api`, `cron` | Key for encrypting CalDAV credentials at rest. | `openssl rand -base64 32` |
+| GOOGLE_CLIENT_ID | `api`, `cron` | Optional. Required for Google Calendar integration. | |
+| GOOGLE_CLIENT_SECRET | `api`, `cron` | Optional. Required for Google Calendar integration. | |
+| MICROSOFT_CLIENT_ID | `api`, `cron` | Optional. Required for Microsoft Outlook integration. | |
+| MICROSOFT_CLIENT_SECRET | `api`, `cron` | Optional. Required for Microsoft Outlook integration. | |
 
-## Combined Images
+> [!NOTE]
+> - `keeper-standalone` auto-configures everything, putting both the Next.js and Bun API behind a single port so you don't have to worry about the `API_URL` and `WEBSOCKET_URL` environment variables.
+> - `keeper-services` and individual images require setting `WEBSOCKET_URL` unless you use a reverse proxy to intercept calls from `/api*` on the Next.js origin to the Bun API.
+
+## Images
 
 | Tag | Description | Included Services |
 | - | - | - |
 | `keeper-standalone:latest` | The "standalone" image is everything you need to get up and running with Keeper with as little configuration as possible. | `keeper-web`, `keeper-api`, `keeper-cron`, `redis`, `postgresql`, `caddy` |
 | `keeper-services:latest` | If you'd like for the Redis & Database to exist outside of the container, you can use the "services" image to launch without them included in the image. | `keeper-web`, `keeper-api`, `keeper-cron` |
-
-## Individual Images
-
-| Tag | Description |
-| - | - |
-| `keeper-web:latest` | An image containing the Next.js interface. |
-| `keeper-api:latest` | An image containing the Bun API service. |
-| `keeper-cron:latest` | An image containing the Bun cron service. |
+| `keeper-web:latest` | An image containing the Next.js interface. | `keeper-web` |
+| `keeper-api:latest` | An image containing the Bun API service. | `keeper-api` |
+| `keeper-cron:latest` | An image containing the Bun cron service. | `keeper-cron` |
 
 ## Prerequisites
 
@@ -182,12 +184,14 @@ If you'd like to bring your own Redis and PostgreSQL, you can use the `keeper-se
 
 ```bash
 cat > .env << EOF
-# DATABASE_URL and REDIS_URL are required.
+# DATABASE_URL, REDIS_URL, and WEBSOCKET_URL are required.
 # *_CLIENT_ID and *_CLIENT_SECRET are optional.
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 ENCRYPTION_KEY=$(openssl rand -base64 32)
-DATABASE_URL=
-REDIS_URL=
+DATABASE_URL=postgres://keeper:keeper@postgres:5432/keeper
+REDIS_URL=redis://redis:6379
+WEBSOCKET_URL=ws://localhost:3001/api/socket
+BETTER_AUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 MICROSOFT_CLIENT_ID=
@@ -230,6 +234,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
+      WEBSOCKET_URL: ${WEBSOCKET_URL}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
@@ -268,12 +273,13 @@ cat > .env << EOF
 # The only optional variables are *_CLIENT_ID, *_CLIENT_SECRET
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 ENCRYPTION_KEY=$(openssl rand -base64 32)
-API_URL=
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-POSTGRES_DB=
-REDIS_URL=
-BETTER_AUTH_URL=
+API_URL=http://api:3001
+WEBSOCKET_URL=ws://localhost:3001/api/socket
+POSTGRES_USER=keeper
+POSTGRES_PASSWORD=keeper
+POSTGRES_DB=keeper
+REDIS_URL=redis://redis:6379
+BETTER_AUTH_URL=http://localhost:3000
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 MICROSOFT_CLIENT_ID=
@@ -315,12 +321,11 @@ services:
       API_PORT: 3001
       DATABASE_URL: postgres://keeper:keeper@postgres:5432/keeper
       REDIS_URL: redis://redis:6379
-      BETTER_AUTH_URL: ${DOMAIN:-http://localhost:3000}
+      WEBSOCKET_URL: ${WEBSOCKET_URL}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       COMMERCIAL_MODE: false
-      PASSKEY_RP_NAME: Keeper
-      PASSKEY_ORIGIN: ${DOMAIN:-http://localhost:3000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
@@ -338,8 +343,6 @@ services:
     environment:
       DATABASE_URL: postgres://keeper:keeper@postgres:5432/keeper
       REDIS_URL: redis://redis:6379
-      BETTER_AUTH_URL: ${DOMAIN:-http://localhost:3000}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
