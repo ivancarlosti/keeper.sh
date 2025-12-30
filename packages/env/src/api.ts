@@ -20,4 +20,5 @@ export default arkenv({
   PASSKEY_RP_NAME: "string?",
   PASSKEY_ORIGIN: "string?",
   ENCRYPTION_KEY: "string?",
+  TRUSTED_ORIGINS: "string?",
 });

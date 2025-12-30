@@ -19,6 +19,11 @@ import { eq } from "drizzle-orm";
 export const database = createDatabase(env.DATABASE_URL);
 const redis = createRedis(env.REDIS_URL);
 
+const parseTrustedOrigins = (origins?: string): string[] | undefined => {
+  if (!origins) return undefined;
+  return origins.split(",").map((origin) => origin.trim());
+};
+
 export const { auth } = createAuth({
   database,
   secret: env.BETTER_AUTH_SECRET,
@@ -32,6 +37,7 @@ export const { auth } = createAuth({
   passkeyRpId: env.PASSKEY_RP_ID,
   passkeyRpName: env.PASSKEY_RP_NAME,
   passkeyOrigin: env.PASSKEY_ORIGIN,
+  trustedOrigins: parseTrustedOrigins(env.TRUSTED_ORIGINS),
 });
 
 export const broadcastService = createBroadcastService({ redis });

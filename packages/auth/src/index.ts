@@ -35,6 +35,7 @@ export interface AuthConfig {
   passkeyRpId?: string;
   passkeyRpName?: string;
   passkeyOrigin?: string;
+  trustedOrigins?: string[];
 }
 
 export interface AuthResult {
@@ -57,6 +58,7 @@ export const createAuth = (config: AuthConfig): AuthResult => {
     passkeyRpId,
     passkeyRpName,
     passkeyOrigin,
+    trustedOrigins,
   } = config;
 
   const resend = resendApiKey ? new Resend(resendApiKey) : null;
@@ -123,6 +125,7 @@ export const createAuth = (config: AuthConfig): AuthResult => {
     }),
     secret,
     baseURL: baseUrl,
+    trustedOrigins,
     emailVerification: {
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }: SendEmailParams) => {
