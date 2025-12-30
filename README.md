@@ -77,6 +77,7 @@ There are five images currently available, two of them are designed for convenie
 | GOOGLE_CLIENT_SECRET | `api`, `cron` | Optional. Required for Google Calendar integration. |
 | MICROSOFT_CLIENT_ID | `api`, `cron` | Optional. Required for Microsoft Outlook integration. |
 | MICROSOFT_CLIENT_SECRET | `api`, `cron` | Optional. Required for Microsoft Outlook integration. |
+| TRUSTED_ORIGINS | `api` | Optional. Comma-separated list of additional trusted origins for CSRF protection. Required when accessing from a URL other than `localhost`.<br><br>e.g. `http://192.168.1.100,http://keeper.local` |
 
 > [!NOTE]
 > - `keeper-standalone` auto-configures everything, putting both the Next.js and Bun API behind a single port so you don't have to worry about the `API_URL` and `WEBSOCKET_URL` environment variables.
@@ -124,11 +125,28 @@ While you'd typically want to run containers granularly, if you just want to get
 
 The following will generate a `.env` file that contains the key used to generate sessions, as well as the key that is used to encrypt CalDAV credentials at rest.
 
+> [!IMPORTANT]
+>
+> If you plan on accessing Keeper from a URL _other than_ http://localhost,
+> you will need to set the `TRUSTED_ORIGINS` environment variable. This should
+> be a comma-delimited list of protocol-hostname inclusive origins you will be using.
+>
+> Here is an example where we would be accessing Keeper from the LAN IP and where we
+> are routing Keeper through a reverse proxy that hosts it at https://keeper.example.com/
+> ```bash
+> TRUSTED_ORIGINS=http://10.0.0.2:3000,https://keeper.example.com
+> ```
+> 
+> Without this, you will fail CSRF checks on the `better-auth` package.
+
 ```bash
 cat > .env << EOF
-# *_CLIENT_ID and *_CLIENT_SECRET are optional.
+# BETTER_AUTH_SECRET and ENCRYPTION_KEY are required.
+# TRUSTED_ORIGINS is required if you plan on accessing Keeper from an
+# origin other than http://localhost/
 BETTER_AUTH_SECRET=$(openssl rand -base64 32)
 ENCRYPTION_KEY=$(openssl rand -base64 32)
+TRUSTED_ORIGINS=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 MICROSOFT_CLIENT_ID=
@@ -163,6 +181,7 @@ services:
     environment:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS}
 
 volumes:
   keeper-data:
