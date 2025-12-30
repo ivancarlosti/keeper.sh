@@ -106,7 +106,8 @@ export const createAuth = (config: AuthConfig): AuthResult => {
     );
   }
 
-  const socialProviders: Parameters<typeof betterAuth>[0]["socialProviders"] = {};
+  const socialProviders: Parameters<typeof betterAuth>[0]["socialProviders"] =
+    {};
 
   if (googleClientId && googleClientSecret) {
     socialProviders.google = {
@@ -126,6 +127,21 @@ export const createAuth = (config: AuthConfig): AuthResult => {
     secret,
     baseURL: baseUrl,
     trustedOrigins,
+    onAPIError: {
+      onError(error: unknown) {
+        const body = "body" in error && error?.body;
+        const message =
+          "body" in body && typeof body?.message === "string"
+            ? body.message
+            : "";
+
+        if (message.toLowerCase().includes("invalid origin")) {
+          console.error(
+            "A request has failed due to an origin mismatch. If this was meant to be a valid request, please set the `TRUSTED_ORIGINS` environment variable to include the origin you intend on accessing Keeper from.\n\nThis should be a comma-delimited array of values, for more information please refer to the documentation on GitHub. https://github.com/ridafkih/keeper.sh#generate-keeper-standalone-environment-variables",
+          );
+        }
+      },
+    },
     emailVerification: {
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }: SendEmailParams) => {
