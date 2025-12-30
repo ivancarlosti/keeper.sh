@@ -23,7 +23,8 @@
         "PASSKEY_RP_NAME",
         "PASSKEY_ORIGIN",
         "ENCRYPTION_KEY",
-        "WEBSOCKET_URL"
+        "WEBSOCKET_URL",
+        "TRUSTED_ORIGINS"
       ]
     },
     "start": {
@@ -47,7 +48,8 @@
         "PASSKEY_RP_NAME",
         "PASSKEY_ORIGIN",
         "ENCRYPTION_KEY",
-        "WEBSOCKET_URL"
+        "WEBSOCKET_URL",
+        "TRUSTED_ORIGINS"
       ]
     }
   }
