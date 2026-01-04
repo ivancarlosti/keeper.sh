@@ -2,7 +2,7 @@
 ![](https://github.com/user-attachments/assets/10546b8e-639d-44d1-a79d-b49a65f09724#gh-dark-mode-only)
 
 # About
-Keeper is a simple & open-source calendar syncing tool. It allows you to pull events from remotely hosted iCal or ICS links, and push them to your main calendar so the time slots can align across all your calendars.
+Keeper is a simple & open-source calendar syncing tool. It allows you to pull events from remotely hosted iCal or ICS links, and push them to one or many calendars so the time slots can align across them all.
 
 # Features
 - Aggregating calendar events from remote sources
@@ -74,8 +74,11 @@ There are five images currently available, two of them are designed for convenie
 | API_PORT | `api` | Port the Bun API listens on. Defaults to `3001` in container images. |
 | API_URL | `web` | The URL the Next.js backend uses to proxy requests to the Bun API.<br><br>e.g. `http://api:3001` |
 | NEXT_PUBLIC_COMMERCIAL_MODE | `web` | Toggle commercial mode in the web UI (`true`/`false`). |
-| NEXT_PUBLIC_POLAR_PRO_MONTHLY_PRODUCT_ID | `web` | Polar monthly product ID to power in-app upgrade links. |
-| NEXT_PUBLIC_POLAR_PRO_YEARLY_PRODUCT_ID | `web` | Polar yearly product ID to power in-app upgrade links. |
+| NEXT_PUBLIC_POLAR_PRO_MONTHLY_PRODUCT_ID | `web` | Optional. Polar monthly product ID to power in-app upgrade links. |
+| NEXT_PUBLIC_POLAR_PRO_YEARLY_PRODUCT_ID | `web` | Optional. Polar yearly product ID to power in-app upgrade links. |
+| NEXT_PUBLIC_VISITORS_NOW_TOKEN | `web` | Optional. [visitors.now](https://visitors.now) token for analytics tracking |
+| NEXT_PUBLIC_GOOGLE_ADS_ID | `web` | Optional. Google Ads conversion tracking ID (e.g., `AW-123456789`) |
+| NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL | `web` | Optional. Google Ads conversion label for purchase tracking |
 | COMMERCIAL_MODE | `api`, `cron` | Enable Polar billing flow. Set to `true` if using Polar for subscriptions. |
 | POLAR_ACCESS_TOKEN | `api`, `cron` | Optional. Polar API token for subscription management. |
 | POLAR_MODE | `api`, `cron` | Optional. Polar environment, `sandbox` or `production`. |

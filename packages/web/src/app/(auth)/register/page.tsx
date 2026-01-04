@@ -4,7 +4,6 @@ import type { FC } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Header } from "@/components/header";
 import { useAuth } from "@/components/auth-provider";
 import {
   AuthFormContainer,
@@ -21,6 +20,7 @@ import { GoogleIcon } from "@/components/icons/google";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import { signUp, signInWithGoogle } from "@/lib/auth";
 import { isCommercialMode } from "@/config/mode";
+import { track } from "@/lib/analytics";
 
 const UsernameRegisterForm: FC = () => {
   const router = useRouter();
@@ -33,8 +33,10 @@ const UsernameRegisterForm: FC = () => {
     const username = String(formData.get("username") ?? "");
     const password = String(formData.get("password") ?? "");
 
+    track("registration_started", { method: "username" });
     await submit(async () => {
       await signUp(username, password);
+      track("registration_completed");
       await refresh();
       router.push("/dashboard");
     });
@@ -84,11 +86,13 @@ const EmailRegisterForm: FC = () => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "");
+    track("registration_started", { method: "email" });
     sessionStorage.setItem("registrationEmail", email);
     router.push("/register/complete");
   };
 
   const handleGoogleSignIn = () => {
+    track("registration_started", { method: "google" });
     setIsRedirecting(true);
     void signInWithGoogle();
   };
@@ -131,12 +135,9 @@ const EmailRegisterForm: FC = () => {
 };
 
 const RegisterPage: FC = () => (
-  <div className="flex flex-col flex-1">
-    <Header />
-    <AuthFormContainer>
-      {isCommercialMode ? <EmailRegisterForm /> : <UsernameRegisterForm />}
-    </AuthFormContainer>
-  </div>
+  <AuthFormContainer>
+    {isCommercialMode ? <EmailRegisterForm /> : <UsernameRegisterForm />}
+  </AuthFormContainer>
 );
 
 export default RegisterPage;
