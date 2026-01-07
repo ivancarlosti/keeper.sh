@@ -3,14 +3,20 @@ import { createGoogleCalendarSourceProvider } from "@keeper.sh/provider-google-c
 import { createOutlookSourceProvider } from "@keeper.sh/provider-outlook";
 import { createGoogleOAuthService } from "@keeper.sh/oauth-google";
 import { createMicrosoftOAuthService } from "@keeper.sh/oauth-microsoft";
-import { WideEvent, emitWideEvent, runWithWideEvent } from "@keeper.sh/log";
+import { WideEvent } from "@keeper.sh/log";
 import { database } from "../context";
 import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
 import env from "@keeper.sh/env/cron";
 
-const syncGoogleSources = async (): Promise<void> => {
+interface ProviderSyncResult {
+  eventsAdded: number;
+  eventsRemoved: number;
+  errorCount: number;
+}
+
+const syncGoogleSources = async (): Promise<ProviderSyncResult | null> => {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-    return;
+    return null;
   }
 
   const googleOAuth = createGoogleOAuthService({
@@ -23,37 +29,27 @@ const syncGoogleSources = async (): Promise<void> => {
     oauthProvider: googleOAuth,
   });
 
-  const event = new WideEvent("cron");
-  event.set({
-    operationName: "sync-oauth-sources",
-    operationType: "oauth-source-sync",
-    provider: "google",
-  });
+  const event = WideEvent.grasp();
+  event?.startTiming("syncGoogleSources");
 
-  await runWithWideEvent(event, async () => {
-    try {
-      const result = await googleSourceProvider.syncAllSources();
-      event.set({
-        eventsAdded: result.eventsAdded,
-        eventsRemoved: result.eventsRemoved,
-        sourceSyncErrors: result.errors?.length ?? 0,
-      });
-      if (result.errors && result.errors.length > 0) {
-        for (const error of result.errors) {
-          event.setError(error);
-        }
-      }
-    } catch (error) {
-      event.setError(error);
-    } finally {
-      emitWideEvent(event.finalize());
-    }
-  });
+  try {
+    const result = await googleSourceProvider.syncAllSources();
+    return {
+      errorCount: result.errors?.length ?? 0,
+      eventsAdded: result.eventsAdded,
+      eventsRemoved: result.eventsRemoved,
+    };
+  } catch (error) {
+    event?.addError(error);
+    return null;
+  } finally {
+    event?.endTiming("syncGoogleSources");
+  }
 };
 
-const syncOutlookSources = async (): Promise<void> => {
+const syncOutlookSources = async (): Promise<ProviderSyncResult | null> => {
   if (!env.MICROSOFT_CLIENT_ID || !env.MICROSOFT_CLIENT_SECRET) {
-    return;
+    return null;
   }
 
   const microsoftOAuth = createMicrosoftOAuthService({
@@ -66,36 +62,45 @@ const syncOutlookSources = async (): Promise<void> => {
     oauthProvider: microsoftOAuth,
   });
 
-  const event = new WideEvent("cron");
-  event.set({
-    operationName: "sync-oauth-sources",
-    operationType: "oauth-source-sync",
-    provider: "outlook",
-  });
+  const event = WideEvent.grasp();
+  event?.startTiming("syncOutlookSources");
 
-  await runWithWideEvent(event, async () => {
-    try {
-      const result = await outlookSourceProvider.syncAllSources();
-      event.set({
-        eventsAdded: result.eventsAdded,
-        eventsRemoved: result.eventsRemoved,
-        sourceSyncErrors: result.errors?.length ?? 0,
-      });
-      if (result.errors && result.errors.length > 0) {
-        for (const error of result.errors) {
-          event.setError(error);
-        }
-      }
-    } catch (error) {
-      event.setError(error);
-    } finally {
-      emitWideEvent(event.finalize());
-    }
-  });
+  try {
+    const result = await outlookSourceProvider.syncAllSources();
+    return {
+      errorCount: result.errors?.length ?? 0,
+      eventsAdded: result.eventsAdded,
+      eventsRemoved: result.eventsRemoved,
+    };
+  } catch (error) {
+    event?.addError(error);
+    return null;
+  } finally {
+    event?.endTiming("syncOutlookSources");
+  }
 };
 
 const syncOAuthSources = async (): Promise<void> => {
-  await Promise.all([syncGoogleSources(), syncOutlookSources()]);
+  const [googleResult, outlookResult] = await Promise.all([
+    syncGoogleSources(),
+    syncOutlookSources(),
+  ]);
+
+  const event = WideEvent.grasp();
+  if (googleResult) {
+    event?.set({
+      googleEventsAdded: googleResult.eventsAdded,
+      googleEventsRemoved: googleResult.eventsRemoved,
+      googleErrorCount: googleResult.errorCount,
+    });
+  }
+  if (outlookResult) {
+    event?.set({
+      outlookEventsAdded: outlookResult.eventsAdded,
+      outlookEventsRemoved: outlookResult.eventsRemoved,
+      outlookErrorCount: outlookResult.errorCount,
+    });
+  }
 };
 
 export default withCronWideEvent({
