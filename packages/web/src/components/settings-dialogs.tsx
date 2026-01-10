@@ -11,6 +11,16 @@ const MIN_PASSWORD_LENGTH = 8;
 const getStringFromFormData = (formData: FormData, key: string): string =>
   stringSchema.assert(formData.get(key));
 
+
+const getPasswordFromFormData = (requiresPassword: boolean, formData: FormData): string | undefined => {
+  if (!requiresPassword) {
+    return undefined;
+  }
+
+  return getStringFromFormData(formData, "password")
+}
+
+
 interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -97,13 +107,15 @@ const ChangePasswordDialog = ({
 };
 
 interface DeleteAccountDialogProps extends DialogProps {
-  onDelete: (password: string) => Promise<void>;
+  onDelete: (password?: string) => Promise<void>;
+  requiresPassword: boolean;
 }
 
 const DeleteAccountDialog = ({
   open,
   onOpenChange,
   onDelete,
+  requiresPassword,
 }: DeleteAccountDialogProps): ReactNode => {
   const { isSubmitting, error, submit } = useFormSubmit();
 
@@ -111,7 +123,7 @@ const DeleteAccountDialog = ({
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
-    const password = getStringFromFormData(formData, "password");
+    const password = getPasswordFromFormData(requiresPassword, formData);;
 
     await submit(async () => {
       await onDelete(password);
@@ -131,14 +143,16 @@ const DeleteAccountDialog = ({
       submitVariant="danger"
       onSubmit={handleSubmit}
     >
-      <FormField
-        id="deletePassword"
-        name="password"
-        label="Enter your password to confirm"
-        type="password"
-        required
-        autoComplete="current-password"
-      />
+      {requiresPassword && (
+        <FormField
+          id="deletePassword"
+          name="password"
+          label="Enter your password to confirm"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+      )}
     </FormDialog>
   );
 };
