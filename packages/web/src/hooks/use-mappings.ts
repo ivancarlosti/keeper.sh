@@ -1,35 +1,56 @@
-import useSWR from "swr";
+import useSWR, { type SWRResponse } from "swr";
 
-export interface SourceDestinationMapping {
+type SourceType = "ics" | "oauth" | "caldav";
+
+interface SourceDestinationMapping {
   id: string;
   sourceId: string;
   destinationId: string;
   createdAt: string;
+  sourceType: SourceType;
 }
 
-async function fetchMappings(): Promise<SourceDestinationMapping[]> {
+const fetchMappings = async (): Promise<SourceDestinationMapping[]> => {
   const response = await fetch("/api/mappings");
   if (!response.ok) {
     throw new Error("Failed to fetch mappings");
   }
   return response.json();
-}
+};
 
-export function useMappings() {
-  return useSWR("source-destination-mappings", fetchMappings);
-}
+const useMappings = (): SWRResponse<SourceDestinationMapping[]> =>
+  useSWR("source-destination-mappings", fetchMappings);
 
-export async function updateSourceDestinations(
+const getUpdateEndpoint = (sourceId: string, sourceType: SourceType): string => {
+  switch (sourceType) {
+    case "oauth": {
+      return `/api/sources/oauth/${sourceId}/destinations`;
+    }
+    case "caldav": {
+      return `/api/sources/caldav/${sourceId}/destinations`;
+    }
+    default: {
+      return `/api/ics/${sourceId}/destinations`;
+    }
+  }
+};
+
+const updateSourceDestinations = async (
   sourceId: string,
   destinationIds: string[],
-): Promise<void> {
-  const response = await fetch(`/api/ics/${sourceId}/destinations`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
+  sourceType: SourceType = "ics",
+): Promise<void> => {
+  const endpoint = getUpdateEndpoint(sourceId, sourceType);
+  const response = await fetch(endpoint, {
     body: JSON.stringify({ destinationIds }),
+    headers: { "Content-Type": "application/json" },
+    method: "PUT",
   });
 
   if (!response.ok) {
     throw new Error("Failed to update source destinations");
   }
-}
+};
+
+export { useMappings, updateSourceDestinations };
+export type { SourceDestinationMapping, SourceType };

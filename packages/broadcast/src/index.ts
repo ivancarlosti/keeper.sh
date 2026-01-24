@@ -1,58 +1,52 @@
-import { log } from "@keeper.sh/log";
-import {
-  socketMessageSchema,
-  broadcastMessageSchema,
-  type BroadcastMessage,
-} from "@keeper.sh/data-schemas";
+import { WideEvent } from "@keeper.sh/log";
+import { broadcastMessageSchema } from "@keeper.sh/data-schemas";
+import type { BroadcastMessage } from "@keeper.sh/data-schemas";
 import { createSubscriber } from "@keeper.sh/redis";
 import { connections, pingIntervals } from "./state";
 import type { Socket } from "./types";
 import type { RedisClient } from "bun";
 
-export type { BroadcastData, Socket } from "./types";
+const EMPTY_CONNECTIONS_COUNT = 0;
+const WEBSOCKET_READY_STATE_OPEN = 1;
+const PING_INTERVAL_MS = 10_000;
+const IDLE_TIMEOUT_SECONDS = 60;
 
-export type OnConnectCallback = (userId: string, socket: Socket) => void | Promise<void>;
+type OnConnectCallback = (userId: string, socket: Socket) => void | Promise<void>;
 
-export interface WebsocketHandlerOptions {
+interface WebsocketHandlerOptions {
   onConnect?: OnConnectCallback;
 }
 
-export interface BroadcastConfig {
+interface BroadcastConfig {
   redis: RedisClient;
 }
 
-export interface BroadcastService {
-  emit: (userId: string, event: string, data: unknown) => void;
+interface BroadcastService {
+  emit: (userId: string, eventName: string, data: unknown) => void;
   startSubscriber: () => Promise<void>;
 }
 
 const CHANNEL = "broadcast";
 
-const sendToUser = (userId: string, event: string, data: unknown): void => {
+const sendToUser = (userId: string, eventName: string, data: unknown): void => {
   const userConnections = connections.get(userId);
 
-  if (!userConnections || userConnections.size === 0) {
+  if (!userConnections || userConnections.size === EMPTY_CONNECTIONS_COUNT) {
     return;
   }
 
-  const message = JSON.stringify({ event, data });
+  const message = JSON.stringify({ data, event: eventName });
   for (const socket of userConnections) {
     socket.send(message);
   }
-
-  log.debug(
-    { userId, event, connectionCount: userConnections.size },
-    "broadcast sent to sockets",
-  );
 };
 
-export const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
+const createBroadcastService = (config: BroadcastConfig): BroadcastService => {
   const { redis } = config;
 
-  const emit = (userId: string, event: string, data: unknown): void => {
-    const message: BroadcastMessage = { userId, event, data };
+  const emit = (userId: string, eventName: string, data: unknown): void => {
+    const message: BroadcastMessage = { data, event: eventName, userId };
     redis.publish(CHANNEL, JSON.stringify(message));
-    log.debug({ userId, event }, "broadcast published to redis");
   };
 
   const startSubscriber = async (): Promise<void> => {
@@ -61,21 +55,24 @@ export const createBroadcastService = (config: BroadcastConfig): BroadcastServic
     await subscriber.subscribe(CHANNEL, (message) => {
       const parsed = JSON.parse(message);
       if (!broadcastMessageSchema.allows(parsed)) {
-        log.error("invalid broadcast message received from redis");
         return;
       }
       sendToUser(parsed.userId, parsed.event, parsed.data);
     });
 
-    log.info("broadcast subscriber started");
+    const event = new WideEvent();
+    event.set({
+      "operation.type": "lifecycle",
+      "operation.name": "broadcast:subscriber:start",
+    });
+    event.emit();
   };
 
   return { emit, startSubscriber };
 };
 
-export const addConnection = (userId: string, socket: Socket): void => {
+const addConnection = (userId: string, socket: Socket): void => {
   const existing = connections.get(userId);
-  log.debug({ userId }, "adding connection");
 
   if (existing) {
     existing.add(socket);
@@ -85,66 +82,92 @@ export const addConnection = (userId: string, socket: Socket): void => {
   connections.set(userId, new Set([socket]));
 };
 
-export const removeConnection = (userId: string, socket: Socket): void => {
+const removeConnection = (userId: string, socket: Socket): void => {
   const userConnections = connections.get(userId);
   if (userConnections) {
     userConnections.delete(socket);
-    if (userConnections.size === 0) {
+    if (userConnections.size === EMPTY_CONNECTIONS_COUNT) {
       connections.delete(userId);
     }
   }
-  log.debug({ userId }, "connection removed");
 };
 
-export const getConnectionCount = (userId: string): number => {
-  return connections.get(userId)?.size ?? 0;
-};
+const getConnectionCount = (userId: string): number =>
+  connections.get(userId)?.size ?? EMPTY_CONNECTIONS_COUNT;
 
-const sendPing = (socket: Socket) => {
+const sendPing = (socket: Socket): void => {
   socket.send(JSON.stringify({ event: "ping" }));
 };
 
-const startPing = (socket: Socket) => {
+const emitWebSocketEvent = (userId: string, operationName: string, error?: unknown): void => {
+  const event = new WideEvent();
+  event.set({
+    "user.id": userId,
+    "operation.type": "connection",
+    "operation.name": operationName,
+  });
+  if (error) {
+    event.addError(error);
+  }
+  event.emit();
+};
+
+const startPing = (socket: Socket): ReturnType<typeof setInterval> => {
   sendPing(socket);
 
-  const interval = setInterval(() => {
-    if (socket.readyState !== 1) {
+  const interval = setInterval((): void => {
+    if (socket.readyState !== WEBSOCKET_READY_STATE_OPEN) {
       clearInterval(interval);
       return;
     }
     sendPing(socket);
-  }, 10_000);
+  }, PING_INTERVAL_MS);
 
   return interval;
 };
 
-export const createWebsocketHandler = (options?: WebsocketHandlerOptions) => ({
-  idleTimeout: 60,
-  async open(socket: Socket) {
-    log.debug({ userId: socket.data.userId }, "socket opened");
-    addConnection(socket.data.userId, socket);
-    pingIntervals.set(socket, startPing(socket));
-    try {
-      await options?.onConnect?.(socket.data.userId, socket);
-    } catch (error) {
-      log.error({ error, userId: socket.data.userId }, "onConnect callback failed");
-    }
-  },
-  close(socket: Socket) {
+const createWebsocketHandler = (
+  options?: WebsocketHandlerOptions,
+): {
+  close: (socket: Socket) => void;
+  idleTimeout: number;
+  message: (socket: Socket, message: string | Buffer) => void;
+  open: (socket: Socket) => Promise<void>;
+} => ({
+  close(socket: Socket): void {
+    const { userId } = socket.data;
     const interval = pingIntervals.get(socket);
-    if (!interval) return removeConnection(socket.data.userId, socket);
-    clearInterval(interval);
-    pingIntervals.delete(socket);
-  },
-  message(socket: Socket, message: string | Buffer) {
-    const data = JSON.parse(message.toString());
-    if (!socketMessageSchema.allows(data)) {
-      log.warn({ userId: socket.data.userId }, "invalid socket message");
-      return;
+
+    if (interval) {
+      clearInterval(interval);
+      pingIntervals.delete(socket);
     }
 
-    if (data.event === "pong") {
-      return;
+    removeConnection(userId, socket);
+    emitWebSocketEvent(userId, "websocket:close");
+  },
+  idleTimeout: IDLE_TIMEOUT_SECONDS,
+  message: (): null => null,
+  async open(socket: Socket): Promise<void> {
+    const { userId } = socket.data;
+    addConnection(userId, socket);
+    pingIntervals.set(socket, startPing(socket));
+
+    try {
+      await options?.onConnect?.(userId, socket);
+      emitWebSocketEvent(userId, "websocket:open");
+    } catch (error) {
+      emitWebSocketEvent(userId, "websocket:open", error);
     }
   },
 });
+
+export {
+  createBroadcastService,
+  addConnection,
+  removeConnection,
+  getConnectionCount,
+  createWebsocketHandler,
+};
+export type { BroadcastData, Socket } from "./types";
+export type { OnConnectCallback, WebsocketHandlerOptions, BroadcastConfig, BroadcastService };

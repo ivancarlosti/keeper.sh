@@ -1,78 +1,44 @@
-import {
-  microsoftTokenResponseSchema,
-  microsoftUserInfoSchema,
-  type MicrosoftTokenResponse,
-  type MicrosoftUserInfo,
-} from "@keeper.sh/data-schemas";
+import { microsoftTokenResponseSchema, microsoftUserInfoSchema } from "@keeper.sh/data-schemas";
+import type { MicrosoftTokenResponse, MicrosoftUserInfo } from "@keeper.sh/data-schemas";
+import { generateState, validateState } from "@keeper.sh/oauth";
+import type { ValidatedState } from "@keeper.sh/oauth";
 
-const MICROSOFT_AUTH_URL =
-  "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
-const MICROSOFT_TOKEN_URL =
-  "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+const MICROSOFT_AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
+const MICROSOFT_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const MICROSOFT_USERINFO_URL = "https://graph.microsoft.com/v1.0/me";
 
-export const MICROSOFT_CALENDAR_SCOPE = "Calendars.ReadWrite";
-export const MICROSOFT_USER_SCOPE = "User.Read";
-export const MICROSOFT_OFFLINE_SCOPE = "offline_access";
+const MICROSOFT_CALENDAR_SCOPE = "Calendars.ReadWrite";
+const MICROSOFT_USER_SCOPE = "User.Read";
+const MICROSOFT_OFFLINE_SCOPE = "offline_access";
 
-interface PendingState {
-  userId: string;
-  destinationId: string | null;
-  expiresAt: number;
-}
-
-export interface ValidatedState {
-  userId: string;
-  destinationId: string | null;
-}
-
-const pendingStates = new Map<string, PendingState>();
-
-export const generateState = (userId: string, destinationId?: string): string => {
-  const state = crypto.randomUUID();
-  const expiresAt = Date.now() + 10 * 60 * 1000;
-  pendingStates.set(state, { userId, destinationId: destinationId ?? null, expiresAt });
-  return state;
-};
-
-export const validateState = (state: string): ValidatedState | null => {
-  const entry = pendingStates.get(state);
-  if (!entry) return null;
-
-  pendingStates.delete(state);
-
-  if (Date.now() > entry.expiresAt) return null;
-
-  return { userId: entry.userId, destinationId: entry.destinationId };
-};
-
-export interface MicrosoftOAuthCredentials {
+interface MicrosoftOAuthCredentials {
   clientId: string;
   clientSecret: string;
 }
 
-export interface AuthorizationUrlOptions {
+interface AuthorizationUrlOptions {
   callbackUrl: string;
   scopes?: string[];
   destinationId?: string;
+  sourceCredentialId?: string;
 }
 
-export interface MicrosoftOAuthService {
+interface MicrosoftOAuthService {
   getAuthorizationUrl: (userId: string, options: AuthorizationUrlOptions) => string;
   exchangeCodeForTokens: (code: string, callbackUrl: string) => Promise<MicrosoftTokenResponse>;
   refreshAccessToken: (refreshToken: string) => Promise<MicrosoftTokenResponse>;
 }
 
-export const createMicrosoftOAuthService = (
+const createMicrosoftOAuthService = (
   credentials: MicrosoftOAuthCredentials,
 ): MicrosoftOAuthService => {
   const { clientId, clientSecret } = credentials;
 
-  const getAuthorizationUrl = (
-    userId: string,
-    options: AuthorizationUrlOptions,
-  ): string => {
-    const state = generateState(userId, options.destinationId);
+  const getAuthorizationUrl = (userId: string, options: AuthorizationUrlOptions): string => {
+    const state = generateState(userId, {
+      destinationId: options.destinationId,
+      sourceCredentialId: options.sourceCredentialId,
+    });
     const scopes = options.scopes ?? [
       MICROSOFT_CALENDAR_SCOPE,
       MICROSOFT_USER_SCOPE,
@@ -96,8 +62,6 @@ export const createMicrosoftOAuthService = (
     callbackUrl: string,
   ): Promise<MicrosoftTokenResponse> => {
     const response = await fetch(MICROSOFT_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
@@ -105,6 +69,8 @@ export const createMicrosoftOAuthService = (
         grant_type: "authorization_code",
         redirect_uri: callbackUrl,
       }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
     });
 
     if (!response.ok) {
@@ -116,18 +82,16 @@ export const createMicrosoftOAuthService = (
     return microsoftTokenResponseSchema.assert(body);
   };
 
-  const refreshAccessToken = async (
-    refreshToken: string,
-  ): Promise<MicrosoftTokenResponse> => {
+  const refreshAccessToken = async (refreshToken: string): Promise<MicrosoftTokenResponse> => {
     const response = await fetch(MICROSOFT_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
-        refresh_token: refreshToken,
         grant_type: "refresh_token",
+        refresh_token: refreshToken,
       }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
     });
 
     if (!response.ok) {
@@ -140,15 +104,13 @@ export const createMicrosoftOAuthService = (
   };
 
   return {
-    getAuthorizationUrl,
     exchangeCodeForTokens,
+    getAuthorizationUrl,
     refreshAccessToken,
   };
 };
 
-export const fetchUserInfo = async (
-  accessToken: string,
-): Promise<MicrosoftUserInfo> => {
+const fetchUserInfo = async (accessToken: string): Promise<MicrosoftUserInfo> => {
   const response = await fetch(MICROSOFT_USERINFO_URL, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -165,9 +127,26 @@ export const fetchUserInfo = async (
  * Checks if the granted scopes include all required scopes for calendar operations.
  * Microsoft returns scopes as a space-separated string.
  */
-export const hasRequiredScopes = (grantedScopes: string): boolean => {
+const hasRequiredScopes = (grantedScopes: string): boolean => {
   const scopes = grantedScopes.toLowerCase().split(" ");
   return scopes.includes(MICROSOFT_CALENDAR_SCOPE.toLowerCase());
 };
 
-export type { MicrosoftTokenResponse, MicrosoftUserInfo };
+export {
+  generateState,
+  validateState,
+  MICROSOFT_CALENDAR_SCOPE,
+  MICROSOFT_USER_SCOPE,
+  MICROSOFT_OFFLINE_SCOPE,
+  createMicrosoftOAuthService,
+  fetchUserInfo,
+  hasRequiredScopes,
+};
+export type {
+  ValidatedState,
+  MicrosoftOAuthCredentials,
+  AuthorizationUrlOptions,
+  MicrosoftOAuthService,
+  MicrosoftTokenResponse,
+  MicrosoftUserInfo,
+};

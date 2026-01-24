@@ -1,118 +1,146 @@
-import {
-  validateEvent,
-  WebhookVerificationError,
-} from "@polar-sh/sdk/webhooks";
-import { log } from "@keeper.sh/log";
-import { userSubscriptionsTable } from "@keeper.sh/database/schema";
+import type { MaybePromise } from "bun";
+import { WebhookVerificationError, validateEvent } from "@polar-sh/sdk/webhooks";
+import { WideEvent } from "@keeper.sh/log";
+import { ErrorResponse } from "../../../utils/responses";
 import { database } from "../../../context";
 import env from "@keeper.sh/env/api";
+import { userSubscriptionsTable } from "@keeper.sh/database/schema";
+
+const HTTP_OK = 200;
+
+const getPlanFromActiveStatus = (active: boolean): "pro" | "free" => {
+  if (active) {
+    return "pro";
+  }
+  return "free";
+};
 
 const upsertSubscription = async (
   userId: string,
   plan: "free" | "pro",
   polarSubscriptionId: string,
-) => {
-  log.trace("upsertSubscription for user '%s' started", userId);
+): Promise<void> => {
   await database
     .insert(userSubscriptionsTable)
     .values({
-      userId,
       plan,
       polarSubscriptionId,
+      userId,
     })
     .onConflictDoUpdate({
-      target: userSubscriptionsTable.userId,
       set: {
         plan,
         polarSubscriptionId,
       },
+      target: userSubscriptionsTable.userId,
     });
-  log.trace("upsertSubscription for user '%s' complete", userId);
 };
 
-export async function POST(request: Request): Promise<Response> {
+const handleSubscriptionCreated = async (
+  event: WideEvent,
+  userId: string | null,
+  subscriptionId: string,
+): Promise<Response> => {
+  if (!userId) {
+    return new Response(null, { status: HTTP_OK });
+  }
+
+  event.set({ "user.id": userId });
+  await upsertSubscription(userId, "pro", subscriptionId);
+  return new Response(null, { status: HTTP_OK });
+};
+
+const handleSubscriptionUpdated = async (
+  event: WideEvent,
+  userId: string | null,
+  subscriptionId: string,
+  isActive: boolean,
+): Promise<Response> => {
+  if (!userId) {
+    return new Response(null, { status: HTTP_OK });
+  }
+
+  const plan = getPlanFromActiveStatus(isActive);
+  event.set({ "subscription.plan": plan, "user.id": userId });
+  await upsertSubscription(userId, plan, subscriptionId);
+  return new Response(null, { status: HTTP_OK });
+};
+
+const handleSubscriptionCanceled = async (
+  event: WideEvent,
+  userId: string | null,
+  subscriptionId: string,
+): Promise<Response> => {
+  if (!userId) {
+    return new Response(null, { status: HTTP_OK });
+  }
+
+  event.set({ "subscription.plan": "free", "user.id": userId });
+  await upsertSubscription(userId, "free", subscriptionId);
+  return new Response(null, { status: HTTP_OK });
+};
+
+const POST = (request: Request): MaybePromise<Response> => {
   const webhookSecret = env.POLAR_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    log.warn("POLAR_WEBHOOK_SECRET not configured");
-    return new Response(null, { status: 501 });
+    return ErrorResponse.notImplemented().toResponse();
   }
 
-  try {
-    const body = await request.text();
-    const headers: Record<string, string> = {};
-    request.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
+  const wideEvent = new WideEvent();
+  wideEvent.set({
+    "operation.name": "polar",
+    "operation.type": "webhook",
+  });
 
-    const event = validateEvent(body, headers, webhookSecret);
-
-    log.trace("polar webhook '%s' started", event.type);
-
-    if (event.type === "subscription.created") {
-      const userId = event.data.customer.externalId;
-      if (!userId) {
-        log.warn("subscription created without external customer ID");
-        log.trace("polar webhook 'subscription.created' complete");
-        return new Response(null, { status: 200 });
+  return wideEvent.run(async () => {
+    try {
+      const body = await request.text();
+      const headers: Record<string, string> = {};
+      for (const [key, value] of request.headers.entries()) {
+        headers[key] = value;
       }
 
-      await upsertSubscription(userId, "pro", event.data.id);
-      log.info(
-        "subscription '%s' created for user '%s'",
-        event.data.id,
-        userId,
-      );
-      log.trace("polar webhook 'subscription.created' complete");
-    }
+      const event = validateEvent(body, headers, webhookSecret);
+      wideEvent.set({ "operation.name": `polar:${event.type}` });
 
-    if (event.type === "subscription.updated") {
-      const userId = event.data.customer.externalId;
-      if (!userId) {
-        log.warn("subscription updated without external customer ID");
-        log.trace("polar webhook 'subscription.updated' complete");
-        return new Response(null, { status: 200 });
+      if (event.type === "subscription.created") {
+        return handleSubscriptionCreated(
+          wideEvent,
+          event.data.customer.externalId ?? null,
+          event.data.id,
+        );
       }
 
-      const isActive = event.data.status === "active";
-      await upsertSubscription(
-        userId,
-        isActive ? "pro" : "free",
-        event.data.id,
-      );
-      log.info(
-        "subscription '%s' updated for user '%s' (active: %s)",
-        event.data.id,
-        userId,
-        isActive,
-      );
-      log.trace("polar webhook 'subscription.updated' complete");
-    }
-
-    if (event.type === "subscription.canceled") {
-      const userId = event.data.customer.externalId;
-      if (!userId) {
-        log.warn("subscription canceled without external customer ID");
-        log.trace("polar webhook 'subscription.canceled' complete");
-        return new Response(null, { status: 200 });
+      if (event.type === "subscription.updated") {
+        return handleSubscriptionUpdated(
+          wideEvent,
+          event.data.customer.externalId ?? null,
+          event.data.id,
+          event.data.status === "active",
+        );
       }
 
-      await upsertSubscription(userId, "free", event.data.id);
-      log.info(
-        "subscription '%s' canceled for user '%s'",
-        event.data.id,
-        userId,
-      );
-      log.trace("polar webhook 'subscription.canceled' complete");
-    }
+      if (event.type === "subscription.canceled") {
+        return handleSubscriptionCanceled(
+          wideEvent,
+          event.data.customer.externalId ?? null,
+          event.data.id,
+        );
+      }
 
-    return new Response(null, { status: 200 });
-  } catch (error) {
-    if (error instanceof WebhookVerificationError) {
-      log.warn("polar webhook verification failed");
-      return new Response(null, { status: 403 });
+      return new Response(null, { status: HTTP_OK });
+    } catch (error) {
+      if (error instanceof WebhookVerificationError) {
+        wideEvent.set({ "error.occurred": true, "error.type": "WebhookVerificationError" });
+        return ErrorResponse.unauthorized().toResponse();
+      }
+      wideEvent.addError(error);
+      throw error;
+    } finally {
+      wideEvent.emit();
     }
-    log.error({ error }, "polar webhook error");
-    throw error;
-  }
-}
+  });
+};
+
+export { POST };

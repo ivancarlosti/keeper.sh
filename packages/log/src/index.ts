@@ -1,3 +1,8 @@
-import pino from "pino";
-
-export const log = pino({ level: process.env.LOG_LEVEL ?? "info" });
+export { WideEvent, log } from "./wide-event/event";
+export type {
+  ApiWideEventFields,
+  BaseWideEventFields,
+  CronWideEventFields,
+  SyncWideEventFields,
+  WebSocketWideEventFields,
+} from "./wide-event/types";

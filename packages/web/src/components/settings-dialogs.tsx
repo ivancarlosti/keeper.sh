@@ -1,13 +1,25 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { stringSchema } from "@keeper.sh/data-schemas";
 import { FormDialog } from "@/components/form-dialog";
 import { FormField } from "@/components/form-field";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 
-function getStringFromFormData(formData: FormData, key: string): string {
-  return stringSchema.assert(formData.get(key));
+const MIN_PASSWORD_LENGTH = 8;
+
+const getStringFromFormData = (formData: FormData, key: string): string =>
+  stringSchema.assert(formData.get(key));
+
+
+const getPasswordFromFormData = (requiresPassword: boolean, formData: FormData): string | undefined => {
+  if (!requiresPassword) {
+    return undefined;
+  }
+
+  return getStringFromFormData(formData, "password")
 }
+
 
 interface DialogProps {
   open: boolean;
@@ -18,14 +30,14 @@ interface ChangePasswordDialogProps extends DialogProps {
   onSave: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-export const ChangePasswordDialog = ({
+const ChangePasswordDialog = ({
   open,
   onOpenChange,
   onSave,
-}: ChangePasswordDialogProps) => {
+}: ChangePasswordDialogProps): ReactNode => {
   const { isSubmitting, error, submit } = useFormSubmit<boolean>();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
@@ -38,7 +50,7 @@ export const ChangePasswordDialog = ({
         throw new Error("New passwords do not match");
       }
 
-      if (newPassword.length < 8) {
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
         throw new Error("New password must be at least 8 characters");
       }
 
@@ -95,21 +107,23 @@ export const ChangePasswordDialog = ({
 };
 
 interface DeleteAccountDialogProps extends DialogProps {
-  onDelete: (password: string) => Promise<void>;
+  onDelete: (password?: string) => Promise<void>;
+  requiresPassword: boolean;
 }
 
-export const DeleteAccountDialog = ({
+const DeleteAccountDialog = ({
   open,
   onOpenChange,
   onDelete,
-}: DeleteAccountDialogProps) => {
+  requiresPassword,
+}: DeleteAccountDialogProps): ReactNode => {
   const { isSubmitting, error, submit } = useFormSubmit();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
     const formData = new FormData(event.currentTarget);
-    const password = getStringFromFormData(formData, "password");
+    const password = getPasswordFromFormData(requiresPassword, formData);;
 
     await submit(async () => {
       await onDelete(password);
@@ -129,14 +143,18 @@ export const DeleteAccountDialog = ({
       submitVariant="danger"
       onSubmit={handleSubmit}
     >
-      <FormField
-        id="deletePassword"
-        name="password"
-        label="Enter your password to confirm"
-        type="password"
-        required
-        autoComplete="current-password"
-      />
+      {requiresPassword && (
+        <FormField
+          id="deletePassword"
+          name="password"
+          label="Enter your password to confirm"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+      )}
     </FormDialog>
   );
 };
+
+export { ChangePasswordDialog, DeleteAccountDialog };

@@ -9,6 +9,7 @@
       },
       "devDependencies": {
         "knip": "5.78.0",
+        "oxlint": "^1.36.0",
         "rimraf": "^6.1.2",
         "turbo": "2.7.2",
       },
@@ -19,15 +20,22 @@
         "@keeper.sh/auth": "workspace:*",
         "@keeper.sh/broadcast": "workspace:*",
         "@keeper.sh/calendar": "workspace:*",
+        "@keeper.sh/constants": "workspace:*",
         "@keeper.sh/data-schemas": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/destination-providers": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
         "@keeper.sh/encryption": "workspace:*",
+        "@keeper.sh/entry-point": "workspace:*",
         "@keeper.sh/env": "workspace:*",
-        "@keeper.sh/integration-caldav": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/oauth-google": "workspace:*",
+        "@keeper.sh/oauth-microsoft": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/provider-caldav": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "@keeper.sh/provider-google-calendar": "workspace:*",
+        "@keeper.sh/provider-outlook": "workspace:*",
+        "@keeper.sh/provider-registry": "workspace:*",
         "@keeper.sh/redis": "workspace:*",
         "@polar-sh/sdk": "^0.42.1",
         "drizzle-orm": "0.45.1",
@@ -88,6 +96,7 @@
     "packages/broadcast-client": {
       "name": "@keeper.sh/broadcast-client",
       "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
         "@keeper.sh/data-schemas": "workspace:*",
       },
       "devDependencies": {
@@ -98,11 +107,19 @@
     "packages/calendar": {
       "name": "@keeper.sh/calendar",
       "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
         "drizzle-orm": "0.45.1",
         "ts-ics": "2.4.0",
       },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/constants": {
+      "name": "@keeper.sh/constants",
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
         "@types/bun": "latest",
@@ -114,12 +131,21 @@
       "dependencies": {
         "@keeper.sh/broadcast": "workspace:*",
         "@keeper.sh/calendar": "workspace:*",
+        "@keeper.sh/constants": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/destination-providers": "workspace:*",
+        "@keeper.sh/entry-point": "workspace:*",
         "@keeper.sh/env": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
         "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/oauth-google": "workspace:*",
+        "@keeper.sh/oauth-microsoft": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/provider-caldav": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "@keeper.sh/provider-fastmail": "workspace:*",
+        "@keeper.sh/provider-google-calendar": "workspace:*",
+        "@keeper.sh/provider-icloud": "workspace:*",
+        "@keeper.sh/provider-outlook": "workspace:*",
+        "@keeper.sh/provider-registry": "workspace:*",
         "@keeper.sh/redis": "workspace:*",
         "@polar-sh/sdk": "^0.42.1",
         "cronbake": "0.4.0",
@@ -157,27 +183,10 @@
         "typescript": "5.9.3",
       },
     },
-    "packages/destination-metadata": {
-      "name": "@keeper.sh/destination-metadata",
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/destination-providers": {
-      "name": "@keeper.sh/destination-providers",
+    "packages/date-utils": {
+      "name": "@keeper.sh/date-utils",
       "dependencies": {
-        "@keeper.sh/destination-metadata": "workspace:*",
-        "@keeper.sh/integration-caldav": "workspace:*",
-        "@keeper.sh/integration-fastmail": "workspace:*",
-        "@keeper.sh/integration-google-calendar": "workspace:*",
-        "@keeper.sh/integration-icloud": "workspace:*",
-        "@keeper.sh/integration-outlook": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/oauth-google": "workspace:*",
-        "@keeper.sh/oauth-microsoft": "workspace:*",
-        "drizzle-orm": "^0.45.1",
+        "@keeper.sh/constants": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -197,100 +206,22 @@
         "typescript": "5.9.3",
       },
     },
+    "packages/entry-point": {
+      "name": "@keeper.sh/entry-point",
+      "dependencies": {
+        "@keeper.sh/log": "workspace:*",
+        "arkenv": "0.8.1",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
     "packages/env": {
       "name": "@keeper.sh/env",
       "dependencies": {
         "arkenv": "^0.8.1",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integration-caldav": {
-      "name": "@keeper.sh/integration-caldav",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/encryption": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
-        "drizzle-orm": "0.45.1",
-        "ts-ics": "2.4.0",
-        "tsdav": "2.1.6",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integration-fastmail": {
-      "name": "@keeper.sh/integration-fastmail",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/integration-caldav": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integration-google-calendar": {
-      "name": "@keeper.sh/integration-google-calendar",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/premium": "workspace:*",
-        "drizzle-orm": "0.45.1",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integration-icloud": {
-      "name": "@keeper.sh/integration-icloud",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/integration-caldav": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integration-outlook": {
-      "name": "@keeper.sh/integration-outlook",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/integrations": "workspace:*",
-        "@keeper.sh/premium": "workspace:*",
-        "drizzle-orm": "0.45.1",
-      },
-      "devDependencies": {
-        "@keeper.sh/typescript-config": "workspace:*",
-        "@types/bun": "latest",
-        "typescript": "5.9.3",
-      },
-    },
-    "packages/integrations": {
-      "name": "@keeper.sh/integrations",
-      "version": "0.0.1",
-      "dependencies": {
-        "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
-        "drizzle-orm": "^0.45.1",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -309,11 +240,24 @@
         "typescript": "5.9.3",
       },
     },
+    "packages/oauth": {
+      "name": "@keeper.sh/oauth",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
     "packages/oauth-google": {
       "name": "@keeper.sh/oauth-google",
       "version": "0.0.1",
       "dependencies": {
         "@keeper.sh/data-schemas": "workspace:*",
+        "@keeper.sh/oauth": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -326,6 +270,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@keeper.sh/data-schemas": "workspace:*",
+        "@keeper.sh/oauth": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -346,11 +291,130 @@
         "typescript": "5.9.3",
       },
     },
+    "packages/provider-caldav": {
+      "name": "@keeper.sh/provider-caldav",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/calendar": "workspace:*",
+        "@keeper.sh/database": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
+        "@keeper.sh/encryption": "workspace:*",
+        "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "drizzle-orm": "0.45.1",
+        "ts-ics": "2.4.0",
+        "tsdav": "2.1.6",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-core": {
+      "name": "@keeper.sh/provider-core",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
+        "@keeper.sh/database": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
+        "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/oauth-google": "workspace:*",
+        "@keeper.sh/oauth-microsoft": "workspace:*",
+        "@keeper.sh/premium": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-fastmail": {
+      "name": "@keeper.sh/provider-fastmail",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/provider-caldav": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-google-calendar": {
+      "name": "@keeper.sh/provider-google-calendar",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
+        "@keeper.sh/data-schemas": "workspace:*",
+        "@keeper.sh/database": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
+        "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-icloud": {
+      "name": "@keeper.sh/provider-icloud",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/provider-caldav": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-outlook": {
+      "name": "@keeper.sh/provider-outlook",
+      "version": "0.0.1",
+      "dependencies": {
+        "@keeper.sh/constants": "workspace:*",
+        "@keeper.sh/data-schemas": "workspace:*",
+        "@keeper.sh/database": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
+        "@keeper.sh/log": "workspace:*",
+        "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
+    "packages/provider-registry": {
+      "name": "@keeper.sh/provider-registry",
+      "dependencies": {
+        "@keeper.sh/provider-caldav": "workspace:*",
+        "@keeper.sh/provider-core": "workspace:*",
+        "@keeper.sh/provider-fastmail": "workspace:*",
+        "@keeper.sh/provider-google-calendar": "workspace:*",
+        "@keeper.sh/provider-icloud": "workspace:*",
+        "@keeper.sh/provider-outlook": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+      "devDependencies": {
+        "@keeper.sh/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "typescript": "5.9.3",
+      },
+    },
     "packages/pull-calendar": {
       "name": "@keeper.sh/pull-calendar",
       "dependencies": {
-        "@keeper.sh/log": "workspace:*",
-        "ts-ics": "2.4.0",
+        "@keeper.sh/calendar": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -369,12 +433,11 @@
     "packages/sync-calendar": {
       "name": "@keeper.sh/sync-calendar",
       "dependencies": {
+        "@keeper.sh/calendar": "workspace:*",
         "@keeper.sh/database": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
         "@keeper.sh/pull-calendar": "workspace:*",
         "@keeper.sh/sync-events": "workspace:*",
         "drizzle-orm": "0.45.1",
-        "ts-ics": "2.4.0",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -385,7 +448,7 @@
     "packages/sync-events": {
       "name": "@keeper.sh/sync-events",
       "dependencies": {
-        "ts-ics": "2.4.0",
+        "@keeper.sh/calendar": "workspace:*",
       },
       "devDependencies": {
         "@keeper.sh/typescript-config": "workspace:*",
@@ -404,11 +467,12 @@
       "dependencies": {
         "@base-ui/react": "1.0.0",
         "@better-auth/passkey": "^1.4.9",
+        "@keeper.sh/constants": "workspace:*",
         "@keeper.sh/data-schemas": "workspace:*",
-        "@keeper.sh/destination-metadata": "workspace:*",
+        "@keeper.sh/date-utils": "workspace:*",
         "@keeper.sh/env": "workspace:*",
-        "@keeper.sh/log": "workspace:*",
         "@keeper.sh/premium": "workspace:*",
+        "@keeper.sh/provider-registry": "workspace:*",
         "@polar-sh/better-auth": "^1.6.3",
         "@polar-sh/checkout": "^0.1.14",
         "@polar-sh/sdk": "^0.42.1",
@@ -809,39 +873,45 @@
 
     "@keeper.sh/calendar": ["@keeper.sh/calendar@workspace:packages/calendar"],
 
+    "@keeper.sh/constants": ["@keeper.sh/constants@workspace:packages/constants"],
+
     "@keeper.sh/cron": ["@keeper.sh/cron@workspace:packages/cron"],
 
     "@keeper.sh/data-schemas": ["@keeper.sh/data-schemas@workspace:packages/data-schemas"],
 
     "@keeper.sh/database": ["@keeper.sh/database@workspace:packages/database"],
 
-    "@keeper.sh/destination-metadata": ["@keeper.sh/destination-metadata@workspace:packages/destination-metadata"],
-
-    "@keeper.sh/destination-providers": ["@keeper.sh/destination-providers@workspace:packages/destination-providers"],
+    "@keeper.sh/date-utils": ["@keeper.sh/date-utils@workspace:packages/date-utils"],
 
     "@keeper.sh/encryption": ["@keeper.sh/encryption@workspace:packages/encryption"],
 
+    "@keeper.sh/entry-point": ["@keeper.sh/entry-point@workspace:packages/entry-point"],
+
     "@keeper.sh/env": ["@keeper.sh/env@workspace:packages/env"],
 
-    "@keeper.sh/integration-caldav": ["@keeper.sh/integration-caldav@workspace:packages/integration-caldav"],
-
-    "@keeper.sh/integration-fastmail": ["@keeper.sh/integration-fastmail@workspace:packages/integration-fastmail"],
-
-    "@keeper.sh/integration-google-calendar": ["@keeper.sh/integration-google-calendar@workspace:packages/integration-google-calendar"],
-
-    "@keeper.sh/integration-icloud": ["@keeper.sh/integration-icloud@workspace:packages/integration-icloud"],
-
-    "@keeper.sh/integration-outlook": ["@keeper.sh/integration-outlook@workspace:packages/integration-outlook"],
-
-    "@keeper.sh/integrations": ["@keeper.sh/integrations@workspace:packages/integrations"],
-
     "@keeper.sh/log": ["@keeper.sh/log@workspace:packages/log"],
+
+    "@keeper.sh/oauth": ["@keeper.sh/oauth@workspace:packages/oauth"],
 
     "@keeper.sh/oauth-google": ["@keeper.sh/oauth-google@workspace:packages/oauth-google"],
 
     "@keeper.sh/oauth-microsoft": ["@keeper.sh/oauth-microsoft@workspace:packages/oauth-microsoft"],
 
     "@keeper.sh/premium": ["@keeper.sh/premium@workspace:packages/premium"],
+
+    "@keeper.sh/provider-caldav": ["@keeper.sh/provider-caldav@workspace:packages/provider-caldav"],
+
+    "@keeper.sh/provider-core": ["@keeper.sh/provider-core@workspace:packages/provider-core"],
+
+    "@keeper.sh/provider-fastmail": ["@keeper.sh/provider-fastmail@workspace:packages/provider-fastmail"],
+
+    "@keeper.sh/provider-google-calendar": ["@keeper.sh/provider-google-calendar@workspace:packages/provider-google-calendar"],
+
+    "@keeper.sh/provider-icloud": ["@keeper.sh/provider-icloud@workspace:packages/provider-icloud"],
+
+    "@keeper.sh/provider-outlook": ["@keeper.sh/provider-outlook@workspace:packages/provider-outlook"],
+
+    "@keeper.sh/provider-registry": ["@keeper.sh/provider-registry@workspace:packages/provider-registry"],
 
     "@keeper.sh/pull-calendar": ["@keeper.sh/pull-calendar@workspace:packages/pull-calendar"],
 
@@ -926,6 +996,22 @@
     "@oxc-resolver/binding-win32-ia32-msvc": ["@oxc-resolver/binding-win32-ia32-msvc@11.16.1", "", { "os": "win32", "cpu": "ia32" }, "sha512-lvMx7XWLJED1JGMyOUKSXFlebdCUMGzBu6fnOjt7iLDtJpwyR/HUs+kMhoUyiMDEsN8DRGLoy+C7V/VUIwxRqg=="],
 
     "@oxc-resolver/binding-win32-x64-msvc": ["@oxc-resolver/binding-win32-x64-msvc@11.16.1", "", { "os": "win32", "cpu": "x64" }, "sha512-PhzhSbDJP8q1T47DzUKMgWecRcfZjYKJdCkmMpW8eSsh86xpnBgrz37UGyBes2g9CAiPp2RmnZAoAA/ufuf3YQ=="],
+
+    "@oxlint/darwin-arm64": ["@oxlint/darwin-arm64@1.36.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-MJkj82GH+nhvWKJhSIM6KlZ8tyGKdogSQXtNdpIyP02r/tTayFJQaAEWayG2Jhsn93kske+nimg5MYFhwO/rlg=="],
+
+    "@oxlint/darwin-x64": ["@oxlint/darwin-x64@1.36.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-VvEhfkqj/99dCTqOcfkyFXOSbx4lIy5u2m2GHbK4WCMDySokOcMTNRHGw8fH/WgQ5cDrDMSTYIGQTmnBGi9tiQ=="],
+
+    "@oxlint/linux-arm64-gnu": ["@oxlint/linux-arm64-gnu@1.36.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-EMx92X5q+hHc3olTuj/kgkx9+yP0p/AVs4yvHbUfzZhBekXNpUWxWvg4hIKmQWn+Ee2j4o80/0ACGO0hDYJ9mg=="],
+
+    "@oxlint/linux-arm64-musl": ["@oxlint/linux-arm64-musl@1.36.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-7YCxtrPIctVYLqWrWkk8pahdCxch6PtsaucfMLC7TOlDt4nODhnQd4yzEscKqJ8Gjrw1bF4g+Ngob1gB+Qr9Fw=="],
+
+    "@oxlint/linux-x64-gnu": ["@oxlint/linux-x64-gnu@1.36.0", "", { "os": "linux", "cpu": "x64" }, "sha512-lnaJVlx5r3NWmoOMesfQXJSf78jHTn8Z+sdAf795Kgteo72+qGC1Uax2SToCJVN2J8PNG3oRV5bLriiCNR2i6Q=="],
+
+    "@oxlint/linux-x64-musl": ["@oxlint/linux-x64-musl@1.36.0", "", { "os": "linux", "cpu": "x64" }, "sha512-AhuEU2Qdl66lSfTGu/Htirq8r/8q2YnZoG3yEXLMQWnPMn7efy8spD/N1NA7kH0Hll+cdfwgQkQqC2G4MS2lPQ=="],
+
+    "@oxlint/win32-arm64": ["@oxlint/win32-arm64@1.36.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-GlWCBjUJY2QgvBFuNRkiRJu7K/djLmM0UQKfZV8IN+UXbP/JbjZHWKRdd4LXlQmzoz7M5Hd6p+ElCej8/90FCg=="],
+
+    "@oxlint/win32-x64": ["@oxlint/win32-x64@1.36.0", "", { "os": "win32", "cpu": "x64" }, "sha512-J+Vc00Utcf8p77lZPruQgb0QnQXuKnFogN88kCnOqs2a83I+vTBB8ILr0+L9sTwVRvIDMSC0pLdeQH4svWGFZg=="],
 
     "@peculiar/asn1-android": ["@peculiar/asn1-android@2.6.0", "", { "dependencies": { "@peculiar/asn1-schema": "^2.6.0", "asn1js": "^3.0.6", "tslib": "^2.8.1" } }, "sha512-cBRCKtYPF7vJGN76/yG8VbxRcHLPF3HnkoHhKOZeHpoVtbMYfY9ROKtH3DtYUY9m8uI1Mh47PRhHf2hSK3xcSQ=="],
 
@@ -1486,6 +1572,8 @@
     "once": ["once@1.4.0", "", { "dependencies": { "wrappy": "1" } }, "sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w=="],
 
     "oxc-resolver": ["oxc-resolver@11.16.1", "", { "optionalDependencies": { "@oxc-resolver/binding-android-arm-eabi": "11.16.1", "@oxc-resolver/binding-android-arm64": "11.16.1", "@oxc-resolver/binding-darwin-arm64": "11.16.1", "@oxc-resolver/binding-darwin-x64": "11.16.1", "@oxc-resolver/binding-freebsd-x64": "11.16.1", "@oxc-resolver/binding-linux-arm-gnueabihf": "11.16.1", "@oxc-resolver/binding-linux-arm-musleabihf": "11.16.1", "@oxc-resolver/binding-linux-arm64-gnu": "11.16.1", "@oxc-resolver/binding-linux-arm64-musl": "11.16.1", "@oxc-resolver/binding-linux-ppc64-gnu": "11.16.1", "@oxc-resolver/binding-linux-riscv64-gnu": "11.16.1", "@oxc-resolver/binding-linux-riscv64-musl": "11.16.1", "@oxc-resolver/binding-linux-s390x-gnu": "11.16.1", "@oxc-resolver/binding-linux-x64-gnu": "11.16.1", "@oxc-resolver/binding-linux-x64-musl": "11.16.1", "@oxc-resolver/binding-openharmony-arm64": "11.16.1", "@oxc-resolver/binding-wasm32-wasi": "11.16.1", "@oxc-resolver/binding-win32-arm64-msvc": "11.16.1", "@oxc-resolver/binding-win32-ia32-msvc": "11.16.1", "@oxc-resolver/binding-win32-x64-msvc": "11.16.1" } }, "sha512-eN5tLRx2oyyNpPyWWItuPiNLY/EpGlqXVJll+Uptds4owQ4UQK3T8rPlR+wl8xBKvQZM4drFC1nKVLeZDUWpQg=="],
+
+    "oxlint": ["oxlint@1.36.0", "", { "optionalDependencies": { "@oxlint/darwin-arm64": "1.36.0", "@oxlint/darwin-x64": "1.36.0", "@oxlint/linux-arm64-gnu": "1.36.0", "@oxlint/linux-arm64-musl": "1.36.0", "@oxlint/linux-x64-gnu": "1.36.0", "@oxlint/linux-x64-musl": "1.36.0", "@oxlint/win32-arm64": "1.36.0", "@oxlint/win32-x64": "1.36.0" }, "peerDependencies": { "oxlint-tsgolint": ">=0.10.0" }, "optionalPeers": ["oxlint-tsgolint"], "bin": { "oxc_language_server": "bin/oxc_language_server", "oxlint": "bin/oxlint" } }, "sha512-IicUdXfXgI8OKrDPnoSjvBfeEF8PkKtm+CoLlg4LYe4ypc8U+T4r7730XYshdBGZdelg+JRw8GtCb2w/KaaZvw=="],
 
     "package-json-from-dist": ["package-json-from-dist@1.0.1", "", {}, "sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw=="],
 

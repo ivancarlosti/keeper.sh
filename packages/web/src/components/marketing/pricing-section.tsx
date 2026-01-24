@@ -10,13 +10,19 @@ interface PricingSectionProps {
   showHeading?: boolean;
 }
 
-export const PricingSection: FC<PricingSectionProps> = ({
-  showHeading = true,
-}) => {
+const getHeading = (showHeading: boolean): string | null => {
+  if (showHeading) {
+    return "Pricing";
+  }
+  return null;
+};
+
+export const PricingSection: FC<PricingSectionProps> = ({ showHeading = true }) => {
   const [isYearly, setIsYearly] = useState(true);
+  const heading = getHeading(showHeading);
 
   return (
-    <MarketingSection id="pricing" heading={showHeading ? "Pricing" : undefined}>
+    <MarketingSection id="pricing" heading={heading}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {plans.map((plan) => (
           <PricingCard

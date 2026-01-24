@@ -1,17 +1,17 @@
-import { log } from "@keeper.sh/log";
-import { withTracing } from "../../../../utils/middleware";
+import { withWideEvent } from "../../../../utils/middleware";
+import { ErrorResponse } from "../../../../utils/responses";
 import {
-  parseOAuthCallback,
-  handleOAuthCallback,
-  buildRedirectUrl,
   OAuthError,
+  buildRedirectUrl,
+  handleOAuthCallback,
+  parseOAuthCallback,
 } from "../../../../utils/oauth";
 
-export const GET = withTracing(async ({ request, params }) => {
+const GET = withWideEvent(async ({ request, params }) => {
   const { provider } = params;
 
   if (!provider) {
-    return new Response("Not found", { status: 404 });
+    return ErrorResponse.notFound().toResponse();
   }
 
   try {
@@ -23,7 +23,6 @@ export const GET = withTracing(async ({ request, params }) => {
       return Response.redirect(error.redirectUrl.toString());
     }
 
-    log.error(error, "failed to complete OAuth callback");
     const errorUrl = buildRedirectUrl("/dashboard/integrations", {
       destination: "error",
       error: "Failed to connect",
@@ -31,3 +30,5 @@ export const GET = withTracing(async ({ request, params }) => {
     return Response.redirect(errorUrl.toString());
   }
 });
+
+export { GET };

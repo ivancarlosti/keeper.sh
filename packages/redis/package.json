@@ -1,17 +1,18 @@
 {
   "name": "@keeper.sh/redis",
-  "scripts": {
-    "types": "tsc --noEmit"
-  },
+  "private": true,
+  "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
-  "type": "module",
-  "private": true,
+  "scripts": {
+    "types": "tsc --noEmit",
+    "lint": "oxlint ."
+  },
+  "dependencies": {},
   "devDependencies": {
     "@keeper.sh/typescript-config": "workspace:*",
     "@types/bun": "latest",
     "typescript": "5.9.3"
-  },
-  "dependencies": {}
+  }
 }

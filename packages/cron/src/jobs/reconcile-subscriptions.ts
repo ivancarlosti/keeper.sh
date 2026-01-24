@@ -1,30 +1,34 @@
 import type { CronOptions } from "cronbake";
 import { userSubscriptionsTable } from "@keeper.sh/database/schema";
 import { user } from "@keeper.sh/database/auth-schema";
-import { log } from "@keeper.sh/log";
+import { WideEvent } from "@keeper.sh/log";
 import { database, polarClient } from "../context";
+import { setCronEventFields, withCronWideEvent } from "../utils/with-wide-event";
+import { countSettledResults } from "../utils/count-settled-results";
 
-class SubscriptionReconcileError extends Error {
-  constructor(
-    public userId: string,
-    cause: unknown,
-  ) {
-    super(`Failed to reconcile subscription for user ${userId}`);
-    this.cause = cause;
+const EMPTY_SUBSCRIPTIONS_COUNT = 0;
+const INITIAL_PROCESSED_COUNT = 0;
+
+const getPlanFromSubscriptionStatus = (hasActive: boolean): "pro" | "free" => {
+  if (hasActive) {
+    return "pro";
   }
-}
+  return "free";
+};
 
-async function reconcileUserSubscription(userId: string) {
-  if (!polarClient) return;
+const reconcileUserSubscription = async (userId: string): Promise<void> => {
+  if (!polarClient) {
+    return;
+  }
 
   try {
     const subscriptions = await polarClient.subscriptions.list({
-      externalCustomerId: userId,
       active: true,
+      externalCustomerId: userId,
     });
 
-    const hasActiveSubscription = subscriptions.result.items.length > 0;
-    const plan = hasActiveSubscription ? "pro" : "free";
+    const hasActiveSubscription = subscriptions.result.items.length > EMPTY_SUBSCRIPTIONS_COUNT;
+    const plan = getPlanFromSubscriptionStatus(hasActiveSubscription);
 
     const [polarSubscription] = subscriptions.result.items;
     const polarSubscriptionId = polarSubscription?.id ?? null;
@@ -32,47 +36,39 @@ async function reconcileUserSubscription(userId: string) {
     await database
       .insert(userSubscriptionsTable)
       .values({
-        userId,
         plan,
         polarSubscriptionId,
+        userId,
       })
       .onConflictDoUpdate({
-        target: userSubscriptionsTable.userId,
         set: {
           plan,
           polarSubscriptionId,
         },
+        target: userSubscriptionsTable.userId,
       });
-
-    log.debug("reconciled user '%s' to plan '%s'", userId, plan);
   } catch (error) {
-    const reconcileError = new SubscriptionReconcileError(userId, error);
-    log.error(
-      { error: reconcileError, userId },
-      "failed to reconcile subscription",
-    );
+    WideEvent.error(error);
   }
-}
+};
 
-export default {
-  name: import.meta.file,
-  cron: "0 0 * * * *",
-  immediate: true,
+export default withCronWideEvent({
   async callback() {
     if (!polarClient) {
-      log.debug("polar client not configured, skipping reconciliation");
+      setCronEventFields({ "processed.count": INITIAL_PROCESSED_COUNT });
       return;
     }
 
     const users = await database.select({ id: user.id }).from(user);
-    log.info("reconciling subscriptions for %s users", users.length);
+    setCronEventFields({ "processed.count": users.length });
 
-    const reconciliations = users.map((user) =>
-      reconcileUserSubscription(user.id),
-    );
+    const reconciliations = users.map((userRecord) => reconcileUserSubscription(userRecord.id));
 
-    await Promise.allSettled(reconciliations);
-
-    log.info("subscription reconciliation complete");
+    const results = await Promise.allSettled(reconciliations);
+    const { failed } = countSettledResults(results);
+    setCronEventFields({ "failed.count": failed });
   },
-} satisfies CronOptions;
+  cron: "0 0 * * * *",
+  immediate: true,
+  name: import.meta.file,
+}) satisfies CronOptions;

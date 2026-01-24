@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@base-ui/react/button";
 import { Menu } from "@base-ui/react/menu";
 import { FREE_DESTINATION_LIMIT } from "@keeper.sh/premium/constants";
-import {
-  DESTINATIONS,
-  isCalDAVDestination,
-  type DestinationConfig,
-} from "@keeper.sh/destination-metadata";
+import { PROVIDER_DEFINITIONS } from "@keeper.sh/provider-registry";
+import type { ProviderDefinition } from "@keeper.sh/provider-registry";
 import { Card } from "@/components/card";
 import { EmptyState } from "@/components/empty-state";
 import { GhostButton } from "@/components/ghost-button";
@@ -26,97 +24,97 @@ import { Section } from "@/components/section";
 import { SectionHeader } from "@/components/section-header";
 import { CalDAVConnectDialog } from "@/components/integrations/caldav-connect-dialog";
 import { useConfirmAction } from "@/hooks/use-confirm-action";
-import { useLinkedAccounts } from "@/hooks/use-linked-accounts";
-import {
-  useMappings,
-  updateSourceDestinations,
-  type SourceDestinationMapping,
-} from "@/hooks/use-mappings";
-import { useSources, type CalendarSource } from "@/hooks/use-sources";
-import { useSubscription } from "@/hooks/use-subscription";
-import { useSyncStatus } from "@/hooks/use-sync-status";
-import {
-  TextLabel,
-  TextMeta,
-  TextMuted,
-  BannerText,
-} from "@/components/typography";
+import type { SourceDestinationMapping } from "@/hooks/use-mappings";
+import type { UnifiedSource } from "@/hooks/use-all-sources";
+import { useDestinationsManager } from "@/hooks/use-destinations-manager";
+import type { SyncStatusDisplayProps } from "@/hooks/use-destinations-manager";
+import { BannerText, TextLabel, TextMeta, TextMuted } from "@/components/typography";
 import { button } from "@/styles";
 import { track } from "@/lib/analytics";
 import { tv } from "tailwind-variants";
-import { Server, Plus, ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Server } from "lucide-react";
 
 const syncStatusText = tv({
   slots: {
-    text: "",
     skeleton: "absolute inset-0 bg-surface-muted rounded animate-pulse",
+    text: "",
   },
   variants: {
     loading: {
-      true: { text: "invisible" },
       false: { skeleton: "hidden" },
+      true: { text: "invisible" },
     },
   },
 });
 
 const destinationStatus = tv({
   slots: {
-    trigger: "flex items-center gap-1.5",
     dot: "size-1.5 rounded-full",
+    trigger: "flex items-center gap-1.5",
   },
   variants: {
     needsReauthentication: {
-      true: { trigger: "text-warning", dot: "bg-warning" },
       false: { dot: "bg-success" },
+      true: { dot: "bg-warning", trigger: "text-warning" },
     },
   },
 });
 
-type CalDAVProvider = "fastmail" | "icloud" | "caldav";
+const isConnectable = (provider: ProviderDefinition): boolean => !provider.comingSoon;
 
-const isCalDAVProvider = (provider: string): provider is CalDAVProvider =>
-  isCalDAVDestination(provider);
+const getMenuItemVariant = (comingSoon: boolean): "disabled" | "default" => {
+  if (comingSoon) {
+    return "disabled";
+  }
+  return "default";
+};
 
-const isConnectable = (destination: DestinationConfig): boolean =>
-  !destination.comingSoon;
+const getImageOpacityClass = (comingSoon: boolean): string => {
+  if (comingSoon) {
+    return "opacity-50";
+  }
+  return "";
+};
 
-interface DestinationMenuItemProps {
-  destination: DestinationConfig;
+interface ProviderMenuItemProps {
+  provider: ProviderDefinition;
   onConnect: (providerId: string) => void;
 }
 
-const DestinationMenuItem = ({
-  destination,
-  onConnect,
-}: DestinationMenuItemProps) => {
-  const connectable = isConnectable(destination);
+const ProviderMenuItemIcon = ({ provider }: { provider: ProviderDefinition }): ReactNode => {
+  if (provider.icon) {
+    return (
+      <Image
+        src={provider.icon}
+        alt={provider.name}
+        width={14}
+        height={14}
+        className={getImageOpacityClass(provider.comingSoon ?? false)}
+      />
+    );
+  }
+  return <Server size={14} className="text-foreground-subtle" />;
+};
+
+const ProviderMenuItem = ({ provider, onConnect }: ProviderMenuItemProps): ReactNode => {
+  const connectable = isConnectable(provider);
 
   return (
     <MenuItem
       onClick={() => {
-        if (!connectable) return;
-        track("destination_selected", { provider: destination.id });
-        onConnect(destination.id);
+        if (!connectable) {
+          return;
+        }
+        track("destination_selected", { provider: provider.id });
+        onConnect(provider.id);
       }}
-      disabled={destination.comingSoon}
-      variant={destination.comingSoon ? "disabled" : "default"}
+      disabled={provider.comingSoon}
+      variant={getMenuItemVariant(provider.comingSoon ?? false)}
       className="py-1.5"
     >
-      {destination.icon ? (
-        <Image
-          src={destination.icon}
-          alt={destination.name}
-          width={14}
-          height={14}
-          className={destination.comingSoon ? "opacity-50" : ""}
-        />
-      ) : (
-        <Server size={14} className="text-foreground-subtle" />
-      )}
-      <span>{destination.name}</span>
-      {destination.comingSoon && (
-        <span className="ml-4 text-xs">Unavailable</span>
-      )}
+      <ProviderMenuItemIcon provider={provider} />
+      <span>{provider.name}</span>
+      {provider.comingSoon && <span className="ml-4 text-xs">Unavailable</span>}
     </MenuItem>
   );
 };
@@ -125,21 +123,17 @@ interface DestinationsMenuProps {
   onConnect: (providerId: string) => void;
 }
 
-const DestinationsMenu = ({ onConnect }: DestinationsMenuProps) => (
+const DestinationsMenu = ({ onConnect }: DestinationsMenuProps): ReactNode => (
   <>
-    {DESTINATIONS.map((destination) => (
-      <DestinationMenuItem
-        key={destination.id}
-        destination={destination}
-        onConnect={onConnect}
-      />
+    {PROVIDER_DEFINITIONS.map((provider) => (
+      <ProviderMenuItem key={provider.id} provider={provider} onConnect={onConnect} />
     ))}
   </>
 );
 
 interface SourcesSubmenuProps {
   destinationId: string;
-  sources: CalendarSource[];
+  sources: UnifiedSource[];
   mappings: SourceDestinationMapping[];
   onToggleSource: (sourceId: string) => void;
 }
@@ -149,7 +143,7 @@ const SourcesSubmenu = ({
   sources,
   mappings,
   onToggleSource,
-}: SourcesSubmenuProps) => {
+}: SourcesSubmenuProps): ReactNode => {
   const enabledSourceIds = new Set<string>();
   for (const mapping of mappings) {
     if (mapping.destinationId === destinationId) {
@@ -196,7 +190,7 @@ interface DestinationActionProps {
   isConnected: boolean;
   needsReauthentication: boolean;
   isLoading: boolean;
-  sources: CalendarSource[];
+  sources: UnifiedSource[];
   mappings: SourceDestinationMapping[];
   onConnect: () => void;
   onDisconnect: () => void;
@@ -214,35 +208,47 @@ const DestinationAction = ({
   onConnect,
   onDisconnect,
   onToggleSource,
-}: DestinationActionProps) => {
+}: DestinationActionProps): ReactNode => {
   if (comingSoon) {
-    return (
-      <TextMuted className="ml-auto px-2 py-1 text-xs">Coming soon</TextMuted>
-    );
+    return <TextMuted className="ml-auto px-2 py-1 text-xs">Coming soon</TextMuted>;
   }
 
   if (!isConnected) {
+    const getConnectButtonText = (): string => {
+      if (isLoading) {
+        return "...";
+      }
+      return "Connect";
+    };
+    const connectButtonText = getConnectButtonText();
     return (
       <GhostButton onClick={onConnect} disabled={isLoading} className="ml-auto">
-        {isLoading ? "..." : "Connect"}
+        {connectButtonText}
       </GhostButton>
     );
   }
 
-  const statusText = needsReauthentication
-    ? "Needs Reauthentication"
-    : "Connected";
+  const getStatusText = (): string => {
+    if (needsReauthentication) {
+      return "Needs Reauthentication";
+    }
+    return "Connected";
+  };
+  const statusText = getStatusText();
   const { trigger, dot } = destinationStatus({ needsReauthentication });
+  const getDisplayText = (): string => {
+    if (isLoading) {
+      return "...";
+    }
+    return statusText;
+  };
+  const displayText = getDisplayText();
 
   return (
     <Menu.Root>
-      <GhostButton
-        render={<Menu.Trigger />}
-        disabled={isLoading}
-        className={trigger()}
-      >
+      <GhostButton render={<Menu.Trigger />} disabled={isLoading} className={trigger()}>
         {!isLoading && <span className={dot()} />}
-        {isLoading ? "..." : statusText}
+        {displayText}
         <ChevronDown size={12} />
       </GhostButton>
       <Menu.Portal>
@@ -265,18 +271,8 @@ const DestinationAction = ({
   );
 };
 
-interface SyncStatusDisplayProps {
-  status: "idle" | "syncing";
-  stage?: "fetching" | "comparing" | "processing";
-  localCount: number;
-  remoteCount: number;
-  progress?: { current: number; total: number };
-  lastOperation?: { type: "add" | "remove"; eventTime: string };
-  inSync: boolean;
-}
-
 interface SyncStatusTextProps {
-  syncStatus?: SyncStatusDisplayProps;
+  syncStatus: SyncStatusDisplayProps | null;
 }
 
 interface SyncProgressProps {
@@ -284,7 +280,7 @@ interface SyncProgressProps {
   total: number;
 }
 
-const SyncProgress = ({ current, total }: SyncProgressProps) => (
+const SyncProgress = ({ current, total }: SyncProgressProps): ReactNode => (
   <>
     Syncing (
     <span className="tabular-nums">
@@ -298,33 +294,41 @@ interface SyncedCountProps {
   count: number;
 }
 
-const SyncedCount = ({ count }: SyncedCountProps) => <>{count} events synced</>;
+const SyncedCount = ({ count }: SyncedCountProps): ReactNode => <>{count} events synced</>;
 
-const SyncStatusText = ({ syncStatus }: SyncStatusTextProps) => {
+const SyncStatusText = ({ syncStatus }: SyncStatusTextProps): ReactNode => {
   const hasReceivedStatus = useRef(false);
-  if (syncStatus) hasReceivedStatus.current = true;
+  if (syncStatus) {
+    hasReceivedStatus.current = true;
+  }
 
   const loading = !hasReceivedStatus.current;
   const { text, skeleton } = syncStatusText({ loading });
 
-  const isProcessing =
-    syncStatus?.status === "syncing" &&
-    syncStatus.stage === "processing" &&
-    syncStatus.progress &&
-    syncStatus.progress.total > 0;
+  const getProgress = (): { current: number; total: number } | null => {
+    if (
+      syncStatus?.status === "syncing" &&
+      syncStatus.stage === "processing" &&
+      syncStatus.progress &&
+      syncStatus.progress.total > 0
+    ) {
+      return syncStatus.progress;
+    }
+    return null;
+  };
+  const progress = getProgress();
+
+  const getStatusContent = (): ReactNode => {
+    if (progress) {
+      return <SyncProgress current={progress.current} total={progress.total} />;
+    }
+    return <SyncedCount count={syncStatus?.remoteCount ?? 0} />;
+  };
+  const statusContent = getStatusContent();
 
   return (
     <TextMeta className="relative w-fit">
-      <span className={text()}>
-        {isProcessing ? (
-          <SyncProgress
-            current={syncStatus.progress!.current}
-            total={syncStatus.progress!.total}
-          />
-        ) : (
-          <SyncedCount count={syncStatus?.remoteCount ?? 0} />
-        )}
-      </span>
+      <span className={text()}>{statusContent}</span>
       <span className={skeleton()} />
     </TextMeta>
   );
@@ -332,12 +336,12 @@ const SyncStatusText = ({ syncStatus }: SyncStatusTextProps) => {
 
 interface DestinationItemProps {
   destinationId: string;
-  destination: DestinationConfig & { name: string };
-  syncStatus?: SyncStatusDisplayProps;
+  provider: ProviderDefinition & { name: string };
+  syncStatus: SyncStatusDisplayProps | null;
   isConnected: boolean;
   needsReauthentication: boolean;
   isLoading: boolean;
-  sources: CalendarSource[];
+  sources: UnifiedSource[];
   mappings: SourceDestinationMapping[];
   onConnect: () => void;
   onDisconnect: () => Promise<void>;
@@ -346,7 +350,7 @@ interface DestinationItemProps {
 
 const DestinationItem = ({
   destinationId,
-  destination,
+  provider,
   isConnected,
   needsReauthentication,
   isLoading,
@@ -356,36 +360,31 @@ const DestinationItem = ({
   onDisconnect,
   onToggleSource,
   syncStatus,
-}: DestinationItemProps) => {
+}: DestinationItemProps): ReactNode => {
   const { isOpen, isConfirming, open, setIsOpen, confirm } = useConfirmAction();
+
+  const getIconContent = (): ReactNode => {
+    if (provider.icon) {
+      return <Image src={provider.icon} alt={provider.name} width={14} height={14} />;
+    }
+    return <Server size={14} className="text-foreground-subtle" />;
+  };
+  const iconContent = getIconContent();
 
   return (
     <>
       <div>
         <div className="flex items-center gap-2 px-3 py-2">
-          <IconBox>
-            {destination.icon ? (
-              <Image
-                src={destination.icon}
-                alt={destination.name}
-                width={14}
-                height={14}
-              />
-            ) : (
-              <Server size={14} className="text-foreground-subtle" />
-            )}
-          </IconBox>
+          <IconBox>{iconContent}</IconBox>
           <div className="flex-1 min-w-0 flex flex-col">
             <TextLabel as="h2" className="tracking-tight">
-              {destination.name}
+              {provider.name}
             </TextLabel>
-            {isConnected && !needsReauthentication && (
-              <SyncStatusText syncStatus={syncStatus} />
-            )}
+            {isConnected && !needsReauthentication && <SyncStatusText syncStatus={syncStatus} />}
           </div>
           <DestinationAction
             destinationId={destinationId}
-            comingSoon={destination.comingSoon}
+            comingSoon={provider.comingSoon}
             isConnected={isConnected}
             needsReauthentication={needsReauthentication}
             isLoading={isLoading}
@@ -400,8 +399,8 @@ const DestinationItem = ({
       <ConfirmDialog
         open={isOpen}
         onOpenChange={setIsOpen}
-        title={`Disconnect ${destination.name}`}
-        description={`Synced events will remain on ${destination.name}. Remove sources first to clear them.`}
+        title={`Disconnect ${provider.name}`}
+        description={`Synced events will remain on ${provider.name}. Remove sources first to clear them.`}
         confirmLabel="Disconnect"
         isConfirming={isConfirming}
         onConfirm={() => confirm(onDisconnect)}
@@ -421,7 +420,7 @@ const NewDestinationMenu = ({
   onConnect,
   trigger,
   align = "start",
-}: NewDestinationMenuProps) => (
+}: NewDestinationMenuProps): ReactNode => (
   <Menu.Root>
     {trigger}
     <Menu.Portal>
@@ -434,59 +433,50 @@ const NewDestinationMenu = ({
   </Menu.Root>
 );
 
-const UpgradeBanner = () => (
+const UpgradeBanner = (): ReactNode => (
   <div className="flex items-center justify-between p-1 pl-3.5 bg-warning-surface border border-warning-border rounded-lg">
     <BannerText variant="warning" className="text-xs">
-      You've reached the free plan limit of {FREE_DESTINATION_LIMIT}{" "}
-      destination.
+      You've reached the free plan limit of {FREE_DESTINATION_LIMIT} destination.
     </BannerText>
-    <Link
-      href="/dashboard/billing"
-      className={button({ variant: "primary", size: "xs" })}
-    >
+    <Link href="/dashboard/billing" className={button({ size: "xs", variant: "primary" })}>
       Upgrade to Pro
     </Link>
   </div>
 );
 
-const getDestinationsForSource = (
-  sourceId: string,
-  mappings: SourceDestinationMapping[],
-): string[] => {
-  const destinationIds: string[] = [];
-  for (const mapping of mappings) {
-    if (mapping.sourceId === sourceId) {
-      destinationIds.push(mapping.destinationId);
-    }
-  }
-  return destinationIds;
-};
-
-export const DestinationsSection = () => {
+export const DestinationsSection = (): ReactNode => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toastManager = Toast.useToastManager();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [caldavDialogOpen, setCaldavDialogOpen] = useState(false);
-  const [caldavProvider, setCaldavProvider] = useState<CalDAVProvider | null>(
-    null,
+
+  const onToast = useCallback(
+    (message: string) => toastManager.add({ title: message }),
+    [toastManager],
   );
+
+  const onNavigate = useCallback((url: string) => {
+    window.location.href = url;
+  }, []);
+
   const {
-    data: accounts,
-    isLoading: isAccountsLoading,
-    mutate: mutateAccounts,
-  } = useLinkedAccounts();
-  const { data: sources } = useSources();
-  const { data: mappings, mutate: mutateMappings } = useMappings();
-  const { data: subscription } = useSubscription();
-  const { data: syncStatus } = useSyncStatus();
-
-  const workingAccountsCount =
-    accounts?.filter((account) => !account.needsReauthentication).length ?? 0;
-
-  const isAtLimit =
-    subscription?.plan === "free" &&
-    workingAccountsCount >= FREE_DESTINATION_LIMIT;
+    accounts,
+    sources,
+    mappings,
+    isAccountsLoading,
+    loadingId,
+    caldavDialogOpen,
+    caldavProvider,
+    isAtLimit,
+    destinationCount,
+    isEmpty,
+    handleConnect,
+    handleDisconnect,
+    handleToggleSource,
+    handleCaldavSuccess,
+    setCaldavDialogOpen,
+    getProviderConfig,
+    getSyncStatus,
+  } = useDestinationsManager({ onNavigate, onToast });
 
   const error = searchParams.get("error");
   const errorHandled = useRef(false);
@@ -497,154 +487,31 @@ export const DestinationsSection = () => {
       toastManager.add({ title: error });
       router.replace("/dashboard/integrations");
     }
-  }, [error]);
+  }, [error, toastManager, router]);
 
-  const getDestinationConfig = (
-    providerId: string,
-  ): DestinationConfig | undefined => {
-    return DESTINATIONS.find(
-      (destination) =>
-        isConnectable(destination) && destination.id === providerId,
-    );
-  };
-
-  const getSyncStatus = (
-    destinationId: string,
-  ): SyncStatusDisplayProps | undefined => {
-    const destinationStatus = syncStatus?.[destinationId];
-    if (!destinationStatus) return undefined;
-    return {
-      status: destinationStatus.status,
-      stage: destinationStatus.stage,
-      localCount: destinationStatus.localEventCount,
-      remoteCount: destinationStatus.remoteEventCount,
-      progress: destinationStatus.progress,
-      lastOperation: destinationStatus.lastOperation,
-      inSync: destinationStatus.inSync,
-    };
-  };
-
-  const handleConnect = (providerId: string, destinationId?: string) => {
-    if (isCalDAVProvider(providerId)) {
-      setCaldavProvider(providerId);
-      setCaldavDialogOpen(true);
-      return;
-    }
-
-    setLoadingId(destinationId ?? providerId);
-    const url = new URL("/api/destinations/authorize", window.location.origin);
-    url.searchParams.set("provider", providerId);
-
-    if (destinationId) {
-      url.searchParams.set("destinationId", destinationId);
-    }
-
-    window.location.href = url.toString();
-  };
-
-  const handleCaldavSuccess = async () => {
-    await mutateAccounts();
-    track("destination_connected", { provider: caldavProvider ?? "caldav" });
-    toastManager.add({ title: "Calendar connected successfully" });
-  };
-
-  const handleDisconnect = async (
-    destinationId: string,
-    providerName: string,
-  ) => {
-    setLoadingId(destinationId);
-    try {
-      const response = await fetch(`/api/destinations/${destinationId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to disconnect");
-      }
-
-      await mutateAccounts();
-      track("destination_disconnected", { provider: providerName });
-      toastManager.add({ title: `Disconnected from ${providerName}` });
-    } catch {
-      toastManager.add({ title: `Failed to disconnect` });
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const handleToggleSource = async (
-    destinationId: string,
-    sourceId: string,
-  ) => {
-    if (!mappings) return;
-
-    const currentDestinations = getDestinationsForSource(sourceId, mappings);
-    const isEnabled = currentDestinations.includes(destinationId);
-    track("mapping_toggled", { action: isEnabled ? "disabled" : "enabled" });
-
-    const newDestinations: string[] = [];
-    for (const destId of currentDestinations) {
-      if (destId !== destinationId) {
-        newDestinations.push(destId);
-      }
-    }
-    if (!isEnabled) {
-      newDestinations.push(destinationId);
-    }
-
-    const optimisticData: SourceDestinationMapping[] = [];
-    for (const mapping of mappings) {
-      const isTargetMapping =
-        mapping.sourceId === sourceId &&
-        mapping.destinationId === destinationId;
-
-      if (isTargetMapping) continue;
-
-      optimisticData.push(mapping);
-    }
-    if (!isEnabled) {
-      optimisticData.push({
-        id: crypto.randomUUID(),
-        sourceId,
-        destinationId,
-        createdAt: new Date().toISOString(),
-      });
-    }
-
-    try {
-      await mutateMappings(optimisticData, { revalidate: false });
-      await updateSourceDestinations(sourceId, newDestinations);
-    } finally {
-      await mutateMappings();
-    }
-  };
-
-  const destinationCount = accounts?.length ?? 0;
-  const isEmpty = !isAccountsLoading && destinationCount === 0;
-
-  const renderDestinationItems = () => {
+  const renderDestinationItems = (): ReactNode[] => {
     const items: React.ReactNode[] = [];
     for (const account of accounts ?? []) {
-      const config = getDestinationConfig(account.providerId);
-      if (!config) continue;
+      const config = getProviderConfig(account.providerId);
+      if (!config) {
+        continue;
+      }
       items.push(
         <DestinationItem
           key={account.id}
           destinationId={account.id}
-          destination={{
+          provider={{
             ...config,
             name: account.email ?? config.name,
           }}
-          isConnected={true}
+          isConnected
           needsReauthentication={account.needsReauthentication}
           isLoading={loadingId === account.id}
-          sources={sources ?? []}
-          mappings={mappings ?? []}
+          sources={sources}
+          mappings={mappings}
           onConnect={() => handleConnect(config.id, account.id)}
           onDisconnect={() => handleDisconnect(account.id, config.name)}
-          onToggleSource={(sourceId) =>
-            handleToggleSource(account.id, sourceId)
-          }
+          onToggleSource={(sourceId) => handleToggleSource(account.id, sourceId)}
           syncStatus={getSyncStatus(account.id)}
         />,
       );
@@ -652,7 +519,7 @@ export const DestinationsSection = () => {
     return items;
   };
 
-  const renderContent = () => {
+  const renderContent = (): ReactNode => {
     if (isAccountsLoading) {
       return <ListSkeleton rows={1} />;
     }
@@ -668,7 +535,7 @@ export const DestinationsSection = () => {
               trigger={
                 <Button
                   render={<Menu.Trigger />}
-                  className={button({ variant: "primary", size: "xs" })}
+                  className={button({ size: "xs", variant: "primary" })}
                 >
                   New Destination
                 </Button>
@@ -679,10 +546,13 @@ export const DestinationsSection = () => {
       );
     }
 
-    const countLabel =
-      destinationCount === 1
-        ? "1 destination"
-        : `${destinationCount} destinations`;
+    const getCountLabel = (): string => {
+      if (destinationCount === 1) {
+        return "1 destination";
+      }
+      return `${destinationCount} destinations`;
+    };
+    const countLabel = getCountLabel();
 
     return (
       <Card>
@@ -693,10 +563,7 @@ export const DestinationsSection = () => {
               onConnect={handleConnect}
               align="end"
               trigger={
-                <GhostButton
-                  render={<Menu.Trigger />}
-                  className="flex items-center gap-1"
-                >
+                <GhostButton render={<Menu.Trigger />} className="flex items-center gap-1">
                   <Plus size={12} />
                   New Destination
                 </GhostButton>

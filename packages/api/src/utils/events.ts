@@ -1,14 +1,13 @@
-import {
-  remoteICalSourcesTable,
-  eventStatesTable,
-} from "@keeper.sh/database/schema";
-import { eq, and, inArray, gte, lte, asc } from "drizzle-orm";
-import { parseDateRangeParams, normalizeDateRange } from "./date-range";
+import { calendarSourcesTable, eventStatesTable } from "@keeper.sh/database/schema";
+import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { normalizeDateRange, parseDateRangeParams } from "./date-range";
 import { database } from "../context";
+
+const EMPTY_SOURCES_COUNT = 0;
 
 interface SourceMetadata {
   name: string;
-  url: string;
+  url: string | null;
 }
 
 interface EnrichedEvent {
@@ -17,46 +16,40 @@ interface EnrichedEvent {
   endTime: Date;
   calendarId: string;
   sourceName: string | undefined;
-  sourceUrl: string | undefined;
+  sourceUrl: string | null | undefined;
 }
 
 /**
  * Gets events for a user within a date range, enriched with source metadata.
  */
-export const getEventsInRange = async (
-  userId: string,
-  url: URL,
-): Promise<EnrichedEvent[]> => {
+const getEventsInRange = async (userId: string, url: URL): Promise<EnrichedEvent[]> => {
   const { from, to } = parseDateRangeParams(url);
   const { start, end } = normalizeDateRange(from, to);
 
   const sources = await database
     .select({
-      id: remoteICalSourcesTable.id,
-      name: remoteICalSourcesTable.name,
-      url: remoteICalSourcesTable.url,
+      id: calendarSourcesTable.id,
+      name: calendarSourcesTable.name,
+      url: calendarSourcesTable.url,
     })
-    .from(remoteICalSourcesTable)
-    .where(eq(remoteICalSourcesTable.userId, userId));
+    .from(calendarSourcesTable)
+    .where(eq(calendarSourcesTable.userId, userId));
 
-  if (sources.length === 0) {
+  if (sources.length === EMPTY_SOURCES_COUNT) {
     return [];
   }
 
   const sourceIds = sources.map((source) => source.id);
   const sourceMap = new Map<string, SourceMetadata>(
-    sources.map((source) => [
-      source.id,
-      { name: source.name, url: source.url },
-    ]),
+    sources.map((source) => [source.id, { name: source.name, url: source.url }]),
   );
 
   const events = await database
     .select({
+      endTime: eventStatesTable.endTime,
       id: eventStatesTable.id,
       sourceId: eventStatesTable.sourceId,
       startTime: eventStatesTable.startTime,
-      endTime: eventStatesTable.endTime,
     })
     .from(eventStatesTable)
     .where(
@@ -75,23 +68,24 @@ export const getEventsInRange = async (
  * Enriches raw events with source metadata.
  */
 const enrichEventsWithSources = (
-  events: Array<{
+  events: {
     id: string;
     sourceId: string;
     startTime: Date;
     endTime: Date;
-  }>,
+  }[],
   sourceMap: Map<string, SourceMetadata>,
-): EnrichedEvent[] => {
-  return events.map((event) => {
+): EnrichedEvent[] =>
+  events.map((event) => {
     const source = sourceMap.get(event.sourceId);
     return {
-      id: event.id,
-      startTime: event.startTime,
-      endTime: event.endTime,
       calendarId: event.sourceId,
+      endTime: event.endTime,
+      id: event.id,
       sourceName: source?.name,
       sourceUrl: source?.url,
+      startTime: event.startTime,
     };
   });
-};
+
+export { getEventsInRange };

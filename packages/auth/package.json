@@ -1,16 +1,12 @@
 {
   "name": "@keeper.sh/auth",
-  "scripts": {
-    "types": "tsc --noEmit"
-  },
+  "private": true,
+  "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "type": "module",
-  "private": true,
-  "devDependencies": {
-    "@keeper.sh/typescript-config": "workspace:*",
-    "@types/bun": "latest",
-    "typescript": "5.9.3"
+  "scripts": {
+    "types": "tsc --noEmit",
+    "lint": "oxlint ."
   },
   "dependencies": {
     "@better-auth/passkey": "^1.4.9",
@@ -22,5 +18,10 @@
     "better-auth": "1.4.9",
     "drizzle-orm": "^0.45.1",
     "resend": "^6.6.0"
+  },
+  "devDependencies": {
+    "@keeper.sh/typescript-config": "workspace:*",
+    "@types/bun": "latest",
+    "typescript": "5.9.3"
   }
 }

@@ -1,18 +1,19 @@
-import { withTracing, withAuth } from "../../../utils/middleware";
+import { withAuth, withWideEvent } from "../../../utils/middleware";
+import { ErrorResponse } from "../../../utils/responses";
 import { deleteSource } from "../../../utils/sources";
 
-export const DELETE = withTracing(
+export const DELETE = withWideEvent(
   withAuth(async ({ params, userId }) => {
     const { id } = params;
 
     if (!id) {
-      return Response.json({ error: "ID is required" }, { status: 400 });
+      return ErrorResponse.badRequest("ID is required").toResponse();
     }
 
     const deleted = await deleteSource(userId, id);
 
     if (!deleted) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+      return ErrorResponse.notFound().toResponse();
     }
 
     return Response.json({ success: true });

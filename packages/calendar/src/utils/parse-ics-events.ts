@@ -1,16 +1,24 @@
-import type { IcsCalendar, IcsEvent, IcsDuration } from "ts-ics";
+import type { IcsCalendar, IcsDuration, IcsEvent } from "ts-ics";
 import type { EventTimeSlot } from "../types";
+import {
+  KEEPER_EVENT_SUFFIX,
+  MS_PER_DAY,
+  MS_PER_HOUR,
+  MS_PER_MINUTE,
+  MS_PER_SECOND,
+  MS_PER_WEEK,
+} from "@keeper.sh/constants";
 
-const FILTER_SUFFIX = "@keeper.sh";
-
-const MS_PER_SECOND = 1000;
-const MS_PER_MINUTE = MS_PER_SECOND * 60;
-const MS_PER_HOUR = MS_PER_MINUTE * 60;
-const MS_PER_DAY = MS_PER_HOUR * 24;
-const MS_PER_WEEK = MS_PER_DAY * 7;
+const DEFAULT_DURATION_VALUE = 0;
 
 const durationToMs = (duration: IcsDuration): number => {
-  const { weeks = 0, days = 0, hours = 0, minutes = 0, seconds = 0 } = duration;
+  const {
+    weeks = DEFAULT_DURATION_VALUE,
+    days = DEFAULT_DURATION_VALUE,
+    hours = DEFAULT_DURATION_VALUE,
+    minutes = DEFAULT_DURATION_VALUE,
+    seconds = DEFAULT_DURATION_VALUE,
+  } = duration;
   return (
     weeks * MS_PER_WEEK +
     days * MS_PER_DAY +
@@ -33,22 +41,28 @@ const getEventEndTime = (event: IcsEvent, startTime: Date): Date => {
 };
 
 const isKeeperEvent = (uid: string | undefined): boolean =>
-  uid?.endsWith(FILTER_SUFFIX) ?? false;
+  uid?.endsWith(KEEPER_EVENT_SUFFIX) ?? false;
 
-export const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
+const parseIcsEvents = (calendar: IcsCalendar): EventTimeSlot[] => {
   const result: EventTimeSlot[] = [];
 
   for (const event of calendar.events ?? []) {
-    if (isKeeperEvent(event.uid)) continue;
-    if (!event.uid) continue;
+    if (isKeeperEvent(event.uid)) {
+      continue;
+    }
+    if (!event.uid) {
+      continue;
+    }
 
     const startTime = event.start.date;
     result.push({
-      uid: event.uid,
-      startTime,
       endTime: getEventEndTime(event, startTime),
+      startTime,
+      uid: event.uid,
     });
   }
 
   return result;
 };
+
+export { parseIcsEvents };

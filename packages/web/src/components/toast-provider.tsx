@@ -1,9 +1,10 @@
 "use client";
 
 import type { FC, PropsWithChildren } from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toast } from "@base-ui/react/toast";
-import { TextLabel, TextBody } from "@/components/typography";
+import { TextBody, TextLabel } from "@/components/typography";
+import { TOAST_TIMEOUT_MS } from "@keeper.sh/constants";
 
 const ToastList: FC = () => {
   const { toasts } = Toast.useToastManager();
@@ -30,7 +31,9 @@ const ToastViewport: FC = () => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return;
+  }
 
   return (
     <Toast.Portal>
@@ -41,11 +44,11 @@ const ToastViewport: FC = () => {
   );
 };
 
-export const ToastProvider: FC<PropsWithChildren> = ({ children }) => (
-  <Toast.Provider timeout={3000}>
+const ToastProvider: FC<PropsWithChildren> = ({ children }) => (
+  <Toast.Provider timeout={TOAST_TIMEOUT_MS}>
     {children}
     <ToastViewport />
   </Toast.Provider>
 );
 
-export { Toast };
+export { ToastProvider, Toast };

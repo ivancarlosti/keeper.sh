@@ -1,45 +1,58 @@
+import type { calendarSourcesTable } from "@keeper.sh/database/schema";
 import {
-  remoteICalSourcesTable,
-  eventStatesTable,
-  calendarSnapshotsTable,
   calendarDestinationsTable,
+  calendarSnapshotsTable,
   eventMappingsTable,
+  eventStatesTable,
 } from "@keeper.sh/database/schema";
-import { convertIcsCalendar } from "ts-ics";
-import { log } from "@keeper.sh/log";
-import { eq, inArray, desc } from "drizzle-orm";
+import { parseIcsCalendar } from "./parse-ics-calendar";
+import { desc, eq, inArray } from "drizzle-orm";
 import { parseIcsEvents } from "./parse-ics-events";
 import { diffEvents } from "./diff-events";
 import type { BunSQLDatabase } from "drizzle-orm/bun-sql";
 
-export type Source = typeof remoteICalSourcesTable.$inferSelect;
+const FIRST_SNAPSHOT_INDEX = 1;
+const MINIMUM_EVENTS_TO_PROCESS = 0;
+
+type Source = typeof calendarSourcesTable.$inferSelect;
 
 const getLatestSnapshot = async (
   database: BunSQLDatabase,
   sourceId: string,
-) => {
+): Promise<ReturnType<typeof parseIcsCalendar> | null> => {
   const [snapshot] = await database
     .select({ ical: calendarSnapshotsTable.ical })
     .from(calendarSnapshotsTable)
     .where(eq(calendarSnapshotsTable.sourceId, sourceId))
     .orderBy(desc(calendarSnapshotsTable.createdAt))
-    .limit(1);
+    .limit(FIRST_SNAPSHOT_INDEX);
 
-  if (!snapshot?.ical) return null;
-  return convertIcsCalendar(undefined, snapshot.ical);
+  if (!snapshot?.ical) {
+    return null;
+  }
+  return parseIcsCalendar({ icsString: snapshot.ical });
 };
 
-const getStoredEvents = async (database: BunSQLDatabase, sourceId: string) => {
-  return database
+const getStoredEvents = (
+  database: BunSQLDatabase,
+  sourceId: string,
+): Promise<
+  {
+    endTime: Date;
+    id: string;
+    startTime: Date;
+    uid: string | null;
+  }[]
+> =>
+  database
     .select({
-      id: eventStatesTable.id,
-      uid: eventStatesTable.sourceEventUid,
-      startTime: eventStatesTable.startTime,
       endTime: eventStatesTable.endTime,
+      id: eventStatesTable.id,
+      startTime: eventStatesTable.startTime,
+      uid: eventStatesTable.sourceEventUid,
     })
     .from(eventStatesTable)
     .where(eq(eventStatesTable.sourceId, sourceId));
-};
 
 const getUserMappedDestinationUids = async (
   database: BunSQLDatabase,
@@ -54,64 +67,42 @@ const getUserMappedDestinationUids = async (
     )
     .where(eq(calendarDestinationsTable.userId, userId));
 
-  return new Set(
-    results.map(({ destinationEventUid }) => destinationEventUid),
-  );
+  return new Set(results.map(({ destinationEventUid }) => destinationEventUid));
 };
 
 const removeEvents = async (
   database: BunSQLDatabase,
-  sourceId: string,
+  _sourceId: string,
   events: { id: string; startTime: Date; endTime: Date }[],
-) => {
+): Promise<void> => {
   const eventIds = events.map(({ id }) => id);
 
-  await database
-    .delete(eventStatesTable)
-    .where(inArray(eventStatesTable.id, eventIds));
-
-  for (const event of events) {
-    log.debug(
-      "removed event from source '%s': %s - %s",
-      sourceId,
-      event.startTime.toISOString(),
-      event.endTime.toISOString(),
-    );
-  }
+  await database.delete(eventStatesTable).where(inArray(eventStatesTable.id, eventIds));
 };
 
 const addEvents = async (
   database: BunSQLDatabase,
   sourceId: string,
   events: { uid: string; startTime: Date; endTime: Date }[],
-) => {
+): Promise<void> => {
   const rows = events.map((event) => ({
-    sourceId,
-    sourceEventUid: event.uid,
-    startTime: event.startTime,
     endTime: event.endTime,
+    sourceEventUid: event.uid,
+    sourceId,
+    startTime: event.startTime,
   }));
 
   await database.insert(eventStatesTable).values(rows);
-
-  for (const event of events) {
-    log.debug(
-      "added event to source '%s': %s - %s",
-      sourceId,
-      event.startTime.toISOString(),
-      event.endTime.toISOString(),
-    );
-  }
 };
 
 type StoredEvent = Awaited<ReturnType<typeof getStoredEvents>>[number];
 type StoredEventWithUid = StoredEvent & { uid: string };
 
-const hasUid = (event: StoredEvent): event is StoredEventWithUid => {
-  return event.uid !== null;
-};
+const hasUid = (event: StoredEvent): event is StoredEventWithUid => event.uid !== null;
 
-const partitionStoredEvents = (events: StoredEvent[]) => {
+const partitionStoredEvents = (
+  events: StoredEvent[],
+): { eventsWithUid: StoredEventWithUid[]; legacyEvents: StoredEvent[] } => {
   const legacyEvents: StoredEvent[] = [];
   const eventsWithUid: StoredEventWithUid[] = [];
 
@@ -123,19 +114,12 @@ const partitionStoredEvents = (events: StoredEvent[]) => {
     }
   }
 
-  return { legacyEvents, eventsWithUid };
+  return { eventsWithUid, legacyEvents };
 };
 
-export async function syncSourceFromSnapshot(
-  database: BunSQLDatabase,
-  source: Source,
-) {
-  log.trace("syncSourceFromSnapshot for source '%s' started", source.id);
-
+const syncSourceFromSnapshot = async (database: BunSQLDatabase, source: Source): Promise<void> => {
   const icsCalendar = await getLatestSnapshot(database, source.id);
   if (!icsCalendar) {
-    log.debug("no snapshot found for source '%s'", source.id);
-    log.trace("syncSourceFromSnapshot for source '%s' complete", source.id);
     return;
   }
 
@@ -145,26 +129,21 @@ export async function syncSourceFromSnapshot(
     getStoredEvents(database, source.id),
   ]);
 
-  const remoteEvents = parsedEvents.filter(
-    (event) => !mappedUids.has(event.uid),
-  );
+  const remoteEvents = parsedEvents.filter((event) => !mappedUids.has(event.uid));
 
   const { legacyEvents, eventsWithUid } = partitionStoredEvents(storedEvents);
   const { toAdd, toRemove } = diffEvents(remoteEvents, eventsWithUid);
 
   const eventsToRemove = [...legacyEvents, ...toRemove];
 
-  if (eventsToRemove.length > 0) {
+  if (eventsToRemove.length > MINIMUM_EVENTS_TO_PROCESS) {
     await removeEvents(database, source.id, eventsToRemove);
   }
 
-  if (toAdd.length > 0) {
+  if (toAdd.length > MINIMUM_EVENTS_TO_PROCESS) {
     await addEvents(database, source.id, toAdd);
   }
+};
 
-  if (toAdd.length === 0 && eventsToRemove.length === 0) {
-    log.debug("source '%s' is in sync", source.id);
-  }
-
-  log.trace("syncSourceFromSnapshot for source '%s' complete", source.id);
-}
+export { syncSourceFromSnapshot };
+export type { Source };

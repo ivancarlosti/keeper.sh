@@ -7,12 +7,12 @@ import { AuthNav } from "@/components/auth-nav";
 import { MarketingNav } from "@/components/marketing/marketing-nav";
 import KeeperLogo from "@/assets/keeper.svg";
 
-const authRoutes = ["/login", "/register"];
+const authRoutes = new Set(["/login", "/register"]);
 
 export const Header: FC = () => {
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
-  const isAuthRoute = authRoutes.includes(pathname);
+  const isAuthRoute = authRoutes.has(pathname);
   const showMarketingNav = !isDashboard && !isAuthRoute;
 
   return (
@@ -22,10 +22,7 @@ export const Header: FC = () => {
           href="/"
           className="px-1.5 text-base font-semibold text-foreground no-underline tracking-tight hover:bg-surface-subtle rounded-md flex items-center gap-1.5"
         >
-          <KeeperLogo
-            aria-label="The Keeper logo"
-            className="size-3 text-foreground"
-          />
+          <KeeperLogo aria-label="The Keeper logo" className="size-3 text-foreground" />
           Keeper
         </Link>
         {showMarketingNav && <MarketingNav />}

@@ -1,19 +1,10 @@
 import env from "@keeper.sh/env/api";
-import { withTracing, withAuth } from "../../../utils/middleware";
-import { socketTokens } from "../../../utils/state";
+import { withAuth, withWideEvent } from "../../../utils/middleware";
+import { generateSocketToken } from "../../../utils/state";
 
-const TOKEN_TTL = 30_000;
-
-const generateSocketToken = (userId: string): string => {
-  const token = crypto.randomUUID();
-  const timeout = setTimeout(() => socketTokens.delete(token), TOKEN_TTL);
-  socketTokens.set(token, { userId, timeout });
-  return token;
-};
-
-export const GET = withTracing(
+const GET = withWideEvent(
   withAuth(async ({ userId }) => {
-    const token = generateSocketToken(userId);
+    const token = await generateSocketToken(userId);
 
     if (env.WEBSOCKET_URL) {
       const socketUrl = new URL(env.WEBSOCKET_URL);
@@ -24,3 +15,5 @@ export const GET = withTracing(
     return Response.json({ socketPath: `/api/socket?token=${token}` });
   }),
 );
+
+export { GET };

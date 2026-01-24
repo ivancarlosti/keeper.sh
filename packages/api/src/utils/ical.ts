@@ -1,11 +1,13 @@
-import {
-  remoteICalSourcesTable,
-  eventStatesTable,
-} from "@keeper.sh/database/schema";
-import { generateIcsCalendar, type IcsCalendar, type IcsEvent } from "ts-ics";
-import { eq, inArray, asc } from "drizzle-orm";
+import { calendarSourcesTable, eventStatesTable } from "@keeper.sh/database/schema";
+import { KEEPER_EVENT_SUFFIX } from "@keeper.sh/constants";
+import { generateIcsCalendar } from "ts-ics";
+import type { IcsCalendar, IcsEvent } from "ts-ics";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { resolveUserIdentifier } from "./user";
 import { database } from "../context";
+
+const EMPTY_SOURCES_COUNT = 0;
+const ICAL_SOURCE_TYPE = "ical";
 
 interface CalendarEvent {
   id: string;
@@ -16,19 +18,19 @@ interface CalendarEvent {
 /**
  * Formats events as an iCal string.
  */
-export const formatEventsAsIcal = (events: CalendarEvent[]): string => {
+const formatEventsAsIcal = (events: CalendarEvent[]): string => {
   const icsEvents: IcsEvent[] = events.map((event) => ({
-    uid: `${event.id}@keeper.sh`,
+    end: { date: event.endTime },
     stamp: { date: new Date() },
     start: { date: event.startTime },
-    end: { date: event.endTime },
     summary: "Busy",
+    uid: `${event.id}${KEEPER_EVENT_SUFFIX}`,
   }));
 
   const calendar: IcsCalendar = {
-    version: "2.0",
-    prodId: "-//Keeper//Keeper Calendar//EN",
     events: icsEvents,
+    prodId: "-//Keeper//Keeper Calendar//EN",
+    version: "2.0",
   };
 
   return generateIcsCalendar(calendar);
@@ -38,9 +40,7 @@ export const formatEventsAsIcal = (events: CalendarEvent[]): string => {
  * Generates an iCal calendar for a user by their identifier.
  * Returns null if user not found.
  */
-export const generateUserCalendar = async (
-  identifier: string,
-): Promise<string | null> => {
+const generateUserCalendar = async (identifier: string): Promise<string | null> => {
   const userId = await resolveUserIdentifier(identifier);
 
   if (!userId) {
@@ -48,20 +48,25 @@ export const generateUserCalendar = async (
   }
 
   const sources = await database
-    .select({ id: remoteICalSourcesTable.id })
-    .from(remoteICalSourcesTable)
-    .where(eq(remoteICalSourcesTable.userId, userId));
+    .select({ id: calendarSourcesTable.id })
+    .from(calendarSourcesTable)
+    .where(
+      and(
+        eq(calendarSourcesTable.userId, userId),
+        eq(calendarSourcesTable.sourceType, ICAL_SOURCE_TYPE),
+      ),
+    );
 
-  if (sources.length === 0) {
+  if (sources.length === EMPTY_SOURCES_COUNT) {
     return formatEventsAsIcal([]);
   }
 
   const sourceIds = sources.map(({ id }) => id);
   const events = await database
     .select({
+      endTime: eventStatesTable.endTime,
       id: eventStatesTable.id,
       startTime: eventStatesTable.startTime,
-      endTime: eventStatesTable.endTime,
     })
     .from(eventStatesTable)
     .where(inArray(eventStatesTable.sourceId, sourceIds))
@@ -69,3 +74,5 @@ export const generateUserCalendar = async (
 
   return formatEventsAsIcal(events);
 };
+
+export { generateUserCalendar };

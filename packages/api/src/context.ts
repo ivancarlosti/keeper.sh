@@ -5,31 +5,30 @@ import { createRedis } from "@keeper.sh/redis";
 import { createAuth } from "@keeper.sh/auth";
 import { createBroadcastService } from "@keeper.sh/broadcast";
 import { createPremiumService } from "@keeper.sh/premium";
-import {
-  createOAuthProviders,
-  createDestinationProviders,
-} from "@keeper.sh/destination-providers";
-import {
-  createSyncCoordinator,
-  type DestinationSyncResult,
-  type SyncProgressUpdate,
-} from "@keeper.sh/integrations";
-import { eq } from "drizzle-orm";
+import { createSyncCoordinator, createOAuthProviders, buildOAuthConfigs } from "@keeper.sh/provider-core";
+import { createDestinationProviders } from "@keeper.sh/provider-registry/server";
+import type { DestinationSyncResult, SyncProgressUpdate } from "@keeper.sh/provider-core";
 
-export const database = createDatabase(env.DATABASE_URL);
+const INITIAL_EVENT_COUNT = 0;
+const MIN_TRUSTED_ORIGINS_COUNT = 0;
+
+const database = createDatabase(env.DATABASE_URL);
 const redis = createRedis(env.REDIS_URL);
 
 const parseTrustedOrigins = (origins?: string): string[] => {
-  if (!origins) return [];
-  return origins.split(",").map((origin) => origin.trim());
+  if (!origins) {
+    return [];
+  }
+  return origins.split(",").map((origin): string => origin.trim());
 };
 
-export const trustedOrigins = parseTrustedOrigins(env.TRUSTED_ORIGINS);
+const trustedOrigins = parseTrustedOrigins(env.TRUSTED_ORIGINS);
 
-export const { auth } = createAuth({
+const { auth } = createAuth({
   database,
   secret: env.BETTER_AUTH_SECRET,
   baseUrl: env.BETTER_AUTH_URL,
+  webBaseUrl: env.BETTER_AUTH_URL,
   commercialMode: env.COMMERCIAL_MODE ?? false,
   polarAccessToken: env.POLAR_ACCESS_TOKEN,
   polarMode: env.POLAR_MODE,
@@ -39,105 +38,106 @@ export const { auth } = createAuth({
   passkeyRpId: env.PASSKEY_RP_ID,
   passkeyRpName: env.PASSKEY_RP_NAME,
   passkeyOrigin: env.PASSKEY_ORIGIN,
-  ...(trustedOrigins.length > 0 && { trustedOrigins }),
+  ...(trustedOrigins.length > MIN_TRUSTED_ORIGINS_COUNT && { trustedOrigins }),
 });
 
-export const broadcastService = createBroadcastService({ redis });
+const broadcastService = createBroadcastService({ redis });
 
-export const premiumService = createPremiumService({
-  database,
+const premiumService = createPremiumService({
   commercialMode: env.COMMERCIAL_MODE ?? false,
+  database,
 });
 
-export const oauthProviders = createOAuthProviders({
-  google:
-    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-      ? {
-          clientId: env.GOOGLE_CLIENT_ID,
-          clientSecret: env.GOOGLE_CLIENT_SECRET,
-        }
-      : undefined,
-  microsoft:
-    env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
-      ? {
-          clientId: env.MICROSOFT_CLIENT_ID,
-          clientSecret: env.MICROSOFT_CLIENT_SECRET,
-        }
-      : undefined,
-});
+const oauthConfigs = buildOAuthConfigs(env);
+const oauthProviders = createOAuthProviders(oauthConfigs);
 
 const broadcastSyncStatus = (
   userId: string,
   destinationId: string,
   data: { needsReauthentication: boolean },
-) => {
+): void => {
   broadcastService.emit(userId, "sync:status", {
     destinationId,
-    status: "idle",
-    localEventCount: 0,
-    remoteEventCount: 0,
     inSync: false,
+    localEventCount: INITIAL_EVENT_COUNT,
     needsReauthentication: data.needsReauthentication,
+    remoteEventCount: INITIAL_EVENT_COUNT,
+    status: "idle",
   });
 };
 
-export const destinationProviders = createDestinationProviders({
-  database,
-  oauthProviders,
-  encryptionKey: env.ENCRYPTION_KEY ?? "",
+const destinationProviders = createDestinationProviders({
   broadcastSyncStatus,
+  database,
+  encryptionKey: env.ENCRYPTION_KEY,
+  oauthProviders,
 });
 
-const onDestinationSync = async (result: DestinationSyncResult) => {
+const onDestinationSync = async (result: DestinationSyncResult): Promise<void> => {
   const now = new Date();
 
   await database
     .insert(syncStatusTable)
     .values({
       destinationId: result.destinationId,
+      lastSyncedAt: now,
       localEventCount: result.localEventCount,
       remoteEventCount: result.remoteEventCount,
-      lastSyncedAt: now,
     })
     .onConflictDoUpdate({
-      target: [syncStatusTable.destinationId],
       set: {
+        lastSyncedAt: now,
         localEventCount: result.localEventCount,
         remoteEventCount: result.remoteEventCount,
-        lastSyncedAt: now,
       },
+      target: [syncStatusTable.destinationId],
     });
 
   if (result.broadcast !== false) {
     broadcastService.emit(result.userId, "sync:status", {
       destinationId: result.destinationId,
-      status: "idle",
-      localEventCount: result.localEventCount,
-      remoteEventCount: result.remoteEventCount,
       inSync: result.localEventCount === result.remoteEventCount,
       lastSyncedAt: now.toISOString(),
+      localEventCount: result.localEventCount,
+      remoteEventCount: result.remoteEventCount,
+      status: "idle",
     });
   }
 };
 
-const onSyncProgress = (update: SyncProgressUpdate) => {
+const onSyncProgress = (update: SyncProgressUpdate): void => {
   broadcastService.emit(update.userId, "sync:status", {
     destinationId: update.destinationId,
-    status: update.status,
-    stage: update.stage,
-    localEventCount: update.localEventCount,
-    remoteEventCount: update.remoteEventCount,
-    progress: update.progress,
-    lastOperation: update.lastOperation,
     inSync: update.inSync,
+    lastOperation: update.lastOperation,
+    localEventCount: update.localEventCount,
+    progress: update.progress,
+    remoteEventCount: update.remoteEventCount,
+    stage: update.stage,
+    status: update.status,
   });
 };
 
-export const syncCoordinator = createSyncCoordinator({
-  redis,
+const syncCoordinator = createSyncCoordinator({
   onDestinationSync,
   onSyncProgress,
+  redis,
 });
 
-export const baseUrl = env.BETTER_AUTH_URL;
-export const encryptionKey = env.ENCRYPTION_KEY;
+const baseUrl = env.BETTER_AUTH_URL;
+const encryptionKey = env.ENCRYPTION_KEY;
+
+export {
+  database,
+  redis,
+  env,
+  trustedOrigins,
+  auth,
+  broadcastService,
+  premiumService,
+  oauthProviders,
+  destinationProviders,
+  syncCoordinator,
+  baseUrl,
+  encryptionKey,
+};

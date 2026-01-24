@@ -1,22 +1,16 @@
 import { PolarEmbedCheckout } from "@polar-sh/checkout/embed";
-import {
-  checkoutSuccessEventSchema,
-  type CheckoutSuccessEvent,
-} from "@keeper.sh/data-schemas";
+import { checkoutSuccessEventSchema, type CheckoutSuccessEvent } from "@keeper.sh/data-schemas";
 import { authClient } from "@/lib/auth-client";
 
 interface CheckoutOptions {
   onSuccess?: (data: CheckoutSuccessEvent) => void;
 }
 
-export async function openCheckout(
-  productId: string,
-  options?: CheckoutOptions,
-) {
+const openCheckout = async (productId: string, options?: CheckoutOptions): Promise<void> => {
   const response = await authClient.checkout({
+    embedOrigin: globalThis.location.origin,
     products: [productId],
     redirect: false,
-    embedOrigin: window.location.origin,
   });
 
   if (!response.data?.url) {
@@ -26,15 +20,17 @@ export async function openCheckout(
   const checkout = await PolarEmbedCheckout.create(response.data.url, "light");
 
   checkout.addEventListener("success", (event) => {
-    const detail = event.detail;
+    const { detail } = event;
     if (!checkoutSuccessEventSchema.allows(detail)) {
       options?.onSuccess?.({});
       return;
     }
     options?.onSuccess?.(detail);
   });
-}
+};
 
-export async function openCustomerPortal() {
+const openCustomerPortal = async (): Promise<void> => {
   await authClient.customer.portal();
-}
+};
+
+export { openCheckout, openCustomerPortal };

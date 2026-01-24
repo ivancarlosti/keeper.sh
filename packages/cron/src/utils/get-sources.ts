@@ -1,32 +1,36 @@
-import {
-  remoteICalSourcesTable,
-  calendarDestinationsTable,
-} from "@keeper.sh/database/schema";
+import { calendarDestinationsTable, calendarSourcesTable } from "@keeper.sh/database/schema";
+import { eq } from "drizzle-orm";
 import type { Plan } from "@keeper.sh/premium";
 import { database, premiumService } from "../context";
 
-export async function getSourcesByPlan(targetPlan: Plan) {
-  const sources = await database.select().from(remoteICalSourcesTable);
+const fetchSources = (sourceType?: string) => {
+  if (sourceType) {
+    return database
+      .select()
+      .from(calendarSourcesTable)
+      .where(eq(calendarSourcesTable.sourceType, sourceType));
+  }
+  return database.select().from(calendarSourcesTable);
+};
+
+const getSourcesByPlan = async (
+  targetPlan: Plan,
+  sourceType?: string,
+): Promise<(typeof calendarSourcesTable.$inferSelect)[]> => {
+  const sources = await fetchSources(sourceType);
 
   const userPlans = new Map<string, Plan>();
 
   for (const source of sources) {
     if (!userPlans.has(source.userId)) {
-      userPlans.set(
-        source.userId,
-        await premiumService.getUserPlan(source.userId),
-      );
+      userPlans.set(source.userId, await premiumService.getUserPlan(source.userId));
     }
   }
 
-  return sources.filter(
-    (source) => userPlans.get(source.userId) === targetPlan,
-  );
-}
+  return sources.filter((source) => userPlans.get(source.userId) === targetPlan);
+};
 
-export async function getUsersWithDestinationsByPlan(
-  targetPlan: Plan,
-): Promise<string[]> {
+const getUsersWithDestinationsByPlan = async (targetPlan: Plan): Promise<string[]> => {
   const destinations = await database
     .select({ userId: calendarDestinationsTable.userId })
     .from(calendarDestinationsTable);
@@ -42,4 +46,6 @@ export async function getUsersWithDestinationsByPlan(
   }
 
   return usersWithPlan;
-}
+};
+
+export { getSourcesByPlan, getUsersWithDestinationsByPlan };

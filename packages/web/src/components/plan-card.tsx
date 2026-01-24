@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Check, MinusIcon } from "lucide-react";
 import { Button } from "@base-ui/react/button";
 import { tv } from "tailwind-variants";
@@ -6,36 +7,36 @@ import { button } from "@/styles";
 
 const pricingCard = tv({
   base: "flex flex-col p-5 border rounded-lg transition-colors",
-  variants: {
-    current: {
-      true: "border-border-emphasis",
-      false: "",
-    },
-    featured: {
-      true: "border-border-emphasis bg-surface-subtle shadow-sm",
-      false: "border-border bg-surface",
-    },
-    muted: {
-      true: "opacity-75",
-      false: "",
-    },
-  },
   defaultVariants: {
     current: false,
     featured: false,
     muted: false,
+  },
+  variants: {
+    current: {
+      false: "",
+      true: "border-border-emphasis",
+    },
+    featured: {
+      false: "border-border bg-surface",
+      true: "border-border-emphasis bg-surface-subtle shadow-sm",
+    },
+    muted: {
+      false: "",
+      true: "opacity-75",
+    },
   },
 });
 
 const pricingBadge = tv({
   base: "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
   variants: {
+    skeleton: {
+      true: "opacity-0",
+    },
     variant: {
       current: "bg-primary text-primary-foreground",
       popular: "bg-info-surface text-info",
-    },
-    skeleton: {
-      true: "opacity-0",
     },
   },
 });
@@ -44,8 +45,8 @@ const pricingFeatureIcon = tv({
   base: "w-4 h-4 shrink-0",
   variants: {
     included: {
-      true: "text-success",
       false: "text-foreground-disabled",
+      true: "text-success",
     },
   },
 });
@@ -53,8 +54,8 @@ const pricingFeatureIcon = tv({
 const pricingFeatureText = tv({
   variants: {
     included: {
-      true: "",
       false: "text-foreground-subtle",
+      true: "",
     },
   },
 });
@@ -79,8 +80,15 @@ interface PlanCardProps {
   targetInterval: "monthly" | "yearly";
 }
 
-const FeatureIcon = ({ included }: { included: boolean }) => {
-  const Icon = included ? Check : MinusIcon;
+const getFeatureIconComponent = (included: boolean): typeof Check | typeof MinusIcon => {
+  if (included) {
+    return Check;
+  }
+  return MinusIcon;
+};
+
+const FeatureIcon = ({ included }: { included: boolean }): ReactNode => {
+  const Icon = getFeatureIconComponent(included);
   return <Icon className={pricingFeatureIcon({ included })} />;
 };
 
@@ -94,13 +102,10 @@ const PlanCardButton = ({
   onManage,
   onSwitchInterval,
   targetInterval,
-}: PlanCardProps) => {
+}: PlanCardProps): ReactNode => {
   if (isSubscriptionLoading) {
     return (
-      <Button
-        className={button({ variant: "secondary", skeleton: true })}
-        disabled
-      >
+      <Button className={button({ skeleton: true, variant: "secondary" })} disabled>
         Upgrade
       </Button>
     );
@@ -123,15 +128,27 @@ const PlanCardButton = ({
   }
 
   if (isCurrent && !isCurrentInterval) {
-    const label =
-      targetInterval === "yearly" ? "Switch to Yearly" : "Switch to Monthly";
+    const getIntervalLabel = (): string => {
+      if (targetInterval === "yearly") {
+        return "Switch to Yearly";
+      }
+      return "Switch to Monthly";
+    };
+    const label = getIntervalLabel();
+    const getButtonText = (): string => {
+      if (isLoading) {
+        return "Loading...";
+      }
+      return label;
+    };
+    const buttonText = getButtonText();
     return (
       <Button
         className={button({ variant: "primary" })}
         onClick={onSwitchInterval}
         disabled={isLoading}
       >
-        {isLoading ? "Loading..." : label}
+        {buttonText}
       </Button>
     );
   }
@@ -144,13 +161,16 @@ const PlanCardButton = ({
     );
   }
 
+  const getUpgradeButtonText = (): string => {
+    if (isLoading) {
+      return "Loading...";
+    }
+    return `Upgrade to ${plan.name}`;
+  };
+  const upgradeButtonText = getUpgradeButtonText();
   return (
-    <Button
-      className={button({ variant: "primary" })}
-      onClick={onUpgrade}
-      disabled={isLoading}
-    >
-      {isLoading ? "Loading..." : `Upgrade to ${plan.name}`}
+    <Button className={button({ variant: "primary" })} onClick={onUpgrade} disabled={isLoading}>
+      {upgradeButtonText}
     </Button>
   );
 };
@@ -165,9 +185,8 @@ export const PlanCard = ({
   onManage,
   onSwitchInterval,
   targetInterval,
-}: PlanCardProps) => {
-  const showCurrentBadge =
-    !isSubscriptionLoading && isCurrent && isCurrentInterval;
+}: PlanCardProps): ReactNode => {
+  const showCurrentBadge = !isSubscriptionLoading && isCurrent && isCurrentInterval;
 
   return (
     <div
@@ -178,35 +197,25 @@ export const PlanCard = ({
       })}
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm tracking-tight font-semibold text-foreground">
-          {plan.name}
-        </h3>
+        <h3 className="text-sm tracking-tight font-semibold text-foreground">{plan.name}</h3>
         <div className="flex gap-1.5">
           {(isSubscriptionLoading || showCurrentBadge) && (
             <span
               className={pricingBadge({
-                variant: "current",
                 skeleton: isSubscriptionLoading,
+                variant: "current",
               })}
             >
               Current
             </span>
           )}
-          {plan.popular && (
-            <span className={pricingBadge({ variant: "popular" })}>
-              Popular
-            </span>
-          )}
+          {plan.popular && <span className={pricingBadge({ variant: "popular" })}>Popular</span>}
         </div>
       </div>
 
       <div className="mb-3">
-        <span className="text-3xl font-bold tracking-tight text-foreground">
-          ${plan.price}
-        </span>
-        <span className="text-sm text-foreground-muted font-normal">
-          {plan.period}
-        </span>
+        <span className="text-3xl font-bold tracking-tight text-foreground">${plan.price}</span>
+        <span className="text-sm text-foreground-muted font-normal">{plan.period}</span>
       </div>
 
       <p className="text-sm text-foreground-muted mb-4">{plan.description}</p>
@@ -218,9 +227,7 @@ export const PlanCard = ({
             className="flex items-center gap-2 text-sm text-foreground-secondary"
           >
             <FeatureIcon included={feature.included} />
-            <span
-              className={pricingFeatureText({ included: feature.included })}
-            >
+            <span className={pricingFeatureText({ included: feature.included })}>
               {feature.name}
             </span>
           </li>

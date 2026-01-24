@@ -1,24 +1,25 @@
 import { updateSourceDestinationsSchema } from "@keeper.sh/data-schemas";
-import { log } from "@keeper.sh/log";
-import { withTracing, withAuth } from "../../../../utils/middleware";
+import { WideEvent } from "@keeper.sh/log";
+import { withAuth, withWideEvent } from "../../../../utils/middleware";
+import { ErrorResponse } from "../../../../utils/responses";
 import {
-  updateSourceMappings,
   getDestinationsForSource,
+  updateSourceMappings,
 } from "../../../../utils/source-destination-mappings";
 import { verifySourceOwnership } from "../../../../utils/sources";
 import { triggerDestinationSync } from "../../../../utils/sync";
 
-export const GET = withTracing(
+const GET = withWideEvent(
   withAuth(async ({ params, userId }) => {
     const { id: sourceId } = params;
 
     if (!sourceId) {
-      return Response.json({ error: "Source ID is required" }, { status: 400 });
+      return ErrorResponse.badRequest("Source ID is required").toResponse();
     }
 
     const isOwner = await verifySourceOwnership(userId, sourceId);
     if (!isOwner) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+      return ErrorResponse.notFound().toResponse();
     }
 
     const destinationIds = await getDestinationsForSource(sourceId);
@@ -26,17 +27,17 @@ export const GET = withTracing(
   }),
 );
 
-export const PUT = withTracing(
+const PUT = withWideEvent(
   withAuth(async ({ request, params, userId }) => {
     const { id: sourceId } = params;
 
     if (!sourceId) {
-      return Response.json({ error: "Source ID is required" }, { status: 400 });
+      return ErrorResponse.badRequest("Source ID is required").toResponse();
     }
 
     const isOwner = await verifySourceOwnership(userId, sourceId);
     if (!isOwner) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+      return ErrorResponse.notFound().toResponse();
     }
 
     try {
@@ -48,11 +49,10 @@ export const PUT = withTracing(
 
       return Response.json({ success: true });
     } catch (error) {
-      log.error({ error }, "error updating source destinations");
-      return Response.json(
-        { error: "Invalid request body" },
-        { status: 400 },
-      );
+      WideEvent.error(error);
+      return ErrorResponse.badRequest("Invalid request body").toResponse();
     }
   }),
 );
+
+export { GET, PUT };

@@ -1,19 +1,19 @@
 "use client";
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import {
-  AuthFormContainer,
   AuthForm,
-  AuthFormTitle,
+  AuthFormContainer,
+  AuthFormDivider,
   AuthFormError,
   AuthFormField,
-  AuthFormSubmit,
   AuthFormFooter,
-  AuthFormDivider,
+  AuthFormSubmit,
+  AuthFormTitle,
   AuthSocialButton,
 } from "@/components/auth-form";
 import { GoogleIcon } from "@/components/icons/google";
@@ -28,7 +28,7 @@ const UsernameLoginForm: FC = () => {
   const { refresh } = useAuth();
   const { isSubmitting, error, submit } = useFormSubmit();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const username = String(formData.get("username") ?? "");
@@ -47,12 +47,7 @@ const UsernameLoginForm: FC = () => {
     <AuthForm onSubmit={handleSubmit}>
       <AuthFormTitle>Login</AuthFormTitle>
       <AuthFormError message={error} />
-      <AuthFormField
-        name="username"
-        placeholder="Username"
-        required
-        autoComplete="username"
-      />
+      <AuthFormField name="username" placeholder="Username" required autoComplete="username" />
       <AuthFormField
         name="password"
         placeholder="Password"
@@ -63,10 +58,7 @@ const UsernameLoginForm: FC = () => {
       <AuthFormSubmit isLoading={isSubmitting}>Sign in</AuthFormSubmit>
       <AuthFormFooter>
         Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="text-foreground font-medium no-underline hover:underline"
-        >
+        <Link href="/register" className="text-foreground font-medium no-underline hover:underline">
           Register
         </Link>
       </AuthFormFooter>
@@ -97,14 +89,17 @@ const EmailLoginForm: FC = () => {
 
     void authClient.signIn
       .passkey({ autoFill: true, fetchOptions: { signal: controller.signal } })
-      .then(async ({ error }) => {
-        if (!error) await refresh();
+      .then(async ({ error }): Promise<null> => {
+        if (!error) {
+          await refresh();
+        }
+        return null;
       });
 
-    return () => controller.abort();
+    return (): void => controller.abort();
   }, [user, refresh, router]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "");
@@ -119,7 +114,7 @@ const EmailLoginForm: FC = () => {
     });
   };
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = (): void => {
     track("login_started", { method: "google" });
     setIsRedirecting(true);
     void signInWithGoogle();
@@ -167,10 +162,7 @@ const EmailLoginForm: FC = () => {
 
       <AuthFormFooter>
         Don&apos;t have an account?{" "}
-        <Link
-          href="/register"
-          className="text-foreground font-medium no-underline hover:underline"
-        >
+        <Link href="/register" className="text-foreground font-medium no-underline hover:underline">
           Register
         </Link>
       </AuthFormFooter>
@@ -178,10 +170,16 @@ const EmailLoginForm: FC = () => {
   );
 };
 
-const LoginPage: FC = () => (
-  <AuthFormContainer>
-    {isCommercialMode ? <EmailLoginForm /> : <UsernameLoginForm />}
-  </AuthFormContainer>
-);
+const getLoginFormComponent = (): ReactNode => {
+  if (isCommercialMode) {
+    return <EmailLoginForm />;
+  }
+  return <UsernameLoginForm />;
+};
+
+const LoginPage = (): ReactNode => {
+  const formComponent = getLoginFormComponent();
+  return <AuthFormContainer>{formComponent}</AuthFormContainer>;
+};
 
 export default LoginPage;

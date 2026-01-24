@@ -1,18 +1,19 @@
 {
   "name": "@keeper.sh/log",
-  "scripts": {
-    "types": "tsc --noEmit"
-  },
+  "private": true,
+  "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "type": "module",
-  "private": true,
+  "scripts": {
+    "types": "tsc --noEmit",
+    "lint": "oxlint ."
+  },
+  "dependencies": {
+    "pino": "10.1.0"
+  },
   "devDependencies": {
     "@keeper.sh/typescript-config": "workspace:*",
     "@types/bun": "latest",
     "typescript": "5.9.3"
-  },
-  "dependencies": {
-    "pino": "10.1.0"
   }
 }

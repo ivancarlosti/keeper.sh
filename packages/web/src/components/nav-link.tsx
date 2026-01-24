@@ -1,4 +1,4 @@
-import type { FC, PropsWithChildren, ComponentProps } from "react";
+import type { ComponentProps, FC, PropsWithChildren } from "react";
 import { NavigationMenu } from "@base-ui/react/navigation-menu";
 import { tv } from "tailwind-variants";
 
@@ -12,11 +12,7 @@ interface NavLinkProps extends Omit<BaseNavLinkProps, "className"> {
   className?: string;
 }
 
-export const NavLink: FC<PropsWithChildren<NavLinkProps>> = ({
-  className,
-  children,
-  ...props
-}) => (
+export const NavLink: FC<PropsWithChildren<NavLinkProps>> = ({ className, children, ...props }) => (
   <NavigationMenu.Link className={navLinkStyle({ className })} {...props}>
     {children}
   </NavigationMenu.Link>

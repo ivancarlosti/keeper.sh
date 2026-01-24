@@ -1,13 +1,17 @@
-import { syncDestinationsForUser } from "@keeper.sh/integrations";
-import { log } from "@keeper.sh/log";
+import { syncDestinationsForUser } from "@keeper.sh/provider-core";
 import { destinationProviders, syncCoordinator } from "../context";
+import { spawnBackgroundJob } from "./background-task";
 
-/**
- * Triggers a background sync for all destinations of a user.
- * Fire-and-forget with error logging - does not throw.
- */
-export const triggerDestinationSync = (userId: string): void => {
-  syncDestinationsForUser(userId, destinationProviders, syncCoordinator).catch((error) => {
-    log.error({ userId, error }, "background destination sync failed");
+const triggerDestinationSync = (userId: string): void => {
+  spawnBackgroundJob("destination-sync", { userId }, async () => {
+    const result = await syncDestinationsForUser(userId, destinationProviders, syncCoordinator);
+    return {
+      eventsAdded: result.added,
+      eventsAddFailed: result.addFailed,
+      eventsRemoved: result.removed,
+      eventsRemoveFailed: result.removeFailed,
+    };
   });
 };
+
+export { triggerDestinationSync };

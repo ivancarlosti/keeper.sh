@@ -6,15 +6,17 @@
     "dev": "bun --bun next dev --turbopack",
     "build": "bun --bun next build",
     "start": "bun --bun next start",
-    "types": "tsc --noEmit"
+    "types": "tsc --noEmit",
+    "lint": "oxlint ."
   },
   "dependencies": {
     "@base-ui/react": "1.0.0",
     "@better-auth/passkey": "^1.4.9",
+    "@keeper.sh/constants": "workspace:*",
     "@keeper.sh/data-schemas": "workspace:*",
-    "@keeper.sh/destination-metadata": "workspace:*",
+    "@keeper.sh/date-utils": "workspace:*",
+    "@keeper.sh/provider-registry": "workspace:*",
     "@keeper.sh/env": "workspace:*",
-    "@keeper.sh/log": "workspace:*",
     "@keeper.sh/premium": "workspace:*",
     "@polar-sh/better-auth": "^1.6.3",
     "@polar-sh/checkout": "^0.1.14",
